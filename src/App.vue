@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import TestRustPlugin from "./components/Test/rust-plugin.vue";
 const greetMsg = ref("");
 const name = ref("");
 
@@ -32,6 +33,7 @@ async function greet() {
       <button type="submit">Greet</button>
     </form>
     <p>{{ greetMsg }}</p>
+    <TestRustPlugin />
   </main>
 </template>
 
