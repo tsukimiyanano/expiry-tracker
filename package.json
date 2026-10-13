@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.4.2",
+    "@tauri-apps/plugin-fs": "^2.7.0",
+    "@tauri-apps/plugin-notification": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "pinia": "^4.0.3",
     "vant": "^4.10.2",
