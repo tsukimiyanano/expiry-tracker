@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from "vue-router";
+import { isDev } from "../utils/env.ts";
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -13,6 +14,15 @@ const router = createRouter({
       name: "categories",
       component: () => import("../views/CategoriesView.vue"),
     },
+    ...(isDev()
+      ? [
+          {
+            path: "/dev-test",
+            name: "DevTest",
+            component: () => import("../views/DevTestView.vue"),
+          },
+        ]
+      : []),
   ],
 });
 
