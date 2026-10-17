@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">"expiry-tracker"</string>
+    <string name="main_activity_title">"expiry-tracker"</string>
+</resources>
