@@ -1,4 +1,3 @@
-
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
@@ -41,11 +40,9 @@ async function testFileWrite() {
       timestamp: new Date().toISOString(),
     }
 
-    await writeTextFile(
-      FILE_NAME,
-      JSON.stringify(data, null, 2),
-      { baseDir: BASE_DIR },
-    )
+    await writeTextFile(FILE_NAME, JSON.stringify(data, null, 2), {
+      baseDir: BASE_DIR,
+    })
 
     fileResult.value = '写入成功：\n' + JSON.stringify(data, null, 2)
   } catch (error) {
@@ -73,8 +70,7 @@ async function testFileRead() {
       throw new Error('文件数据结构不符合预期')
     }
 
-    fileResult.value =
-      '读取成功：\n' + JSON.stringify(data, null, 2)
+    fileResult.value = '读取成功：\n' + JSON.stringify(data, null, 2)
   } catch (error) {
     fileResult.value = '读取失败：' + errorMessage(error)
   } finally {
@@ -105,12 +101,9 @@ async function testNotificationPermission() {
       granted = result === 'granted'
     }
 
-    notificationResult.value = granted
-      ? '通知权限已授予'
-      : '通知权限未授予'
+    notificationResult.value = granted ? '通知权限已授予' : '通知权限未授予'
   } catch (error) {
-    notificationResult.value =
-      '权限检查失败：' + errorMessage(error)
+    notificationResult.value = '权限检查失败：' + errorMessage(error)
   }
 }
 
@@ -129,11 +122,9 @@ async function testNotification() {
       body: '这是一条来自 Tauri 的本地通知',
     })
 
-    notificationResult.value =
-      '已调用发送通知接口，请检查 Android 通知栏'
+    notificationResult.value = '已调用发送通知接口，请检查 Android 通知栏'
   } catch (error) {
-    notificationResult.value =
-      '通知调用失败：' + errorMessage(error)
+    notificationResult.value = '通知调用失败：' + errorMessage(error)
   }
 }
 </script>
@@ -167,11 +158,7 @@ async function testNotification() {
 
     <section>
       <h4>剪贴板</h4>
-      <Button
-        type="primary"
-        size="small"
-        @click="testClipboard"
-      >
+      <Button type="primary" size="small" @click="testClipboard">
         复制文本
       </Button>
 
@@ -180,10 +167,7 @@ async function testNotification() {
 
     <section>
       <h4>Android 通知</h4>
-      <Button
-        size="small"
-        @click="testNotificationPermission"
-      >
+      <Button size="small" @click="testNotificationPermission">
         申请权限
       </Button>
 
@@ -200,7 +184,6 @@ async function testNotification() {
     </section>
   </div>
 </template>
-
 
 <style scoped>
 .native-test {

@@ -39,8 +39,7 @@ function isItem(value: unknown): value is Item {
     value.id.length > 0 &&
     StringUtils.isString(value.groupId) &&
     value.groupId.length > 0 &&
-    (value.productName === null ||
-      StringUtils.isString(value.productName)) &&
+    (value.productName === null || StringUtils.isString(value.productName)) &&
     StringUtils.isString(value.expireDate) &&
     /^\d{4}-\d{2}-\d{2}$/.test(value.expireDate) &&
     typeof value.isUsed === 'boolean' &&
@@ -53,9 +52,7 @@ function isItem(value: unknown): value is Item {
 /**
  * 校验应用数据结构与关联关系。
  */
-export function validateAppData(
-  value: unknown,
-): asserts value is AppData {
+export function validateAppData(value: unknown): asserts value is AppData {
   if (
     !ObjectUtils.isRecord(value) ||
     value.version !== APP_DATA_VERSION ||
@@ -80,17 +77,17 @@ export function validateAppData(
 
   // 检查所有 ID 的唯一性
   const allIds = [
-    ...groups.map(group => group.id),
-    ...items.map(item => item.id),
-    ...categories.map(category => category.id),
+    ...groups.map((group) => group.id),
+    ...items.map((item) => item.id),
+    ...categories.map((category) => category.id),
   ]
 
   if (new Set(allIds).size !== allIds.length) {
     throw new Error('应用数据中存在重复 ID')
   }
 
-  const groupIds = new Set(groups.map(group => group.id))
-  const categoryIds = new Set(categories.map(category => category.id))
+  const groupIds = new Set(groups.map((group) => group.id))
+  const categoryIds = new Set(categories.map((category) => category.id))
 
   // 检查物品是否关联有效分组
   for (const item of items) {
@@ -107,15 +104,13 @@ export function validateAppData(
 
     for (const categoryId of group.categoryIds) {
       if (!categoryIds.has(categoryId)) {
-        throw new Error(
-          `分组 ${group.id} 引用了不存在的分类`,
-        )
+        throw new Error(`分组 ${group.id} 引用了不存在的分类`)
       }
     }
   }
 
   // 分类名称唯一性：忽略首尾空格和大小写
-  const normalizedNames = categories.map(category =>
+  const normalizedNames = categories.map((category) =>
     category.name.trim().toLowerCase(),
   )
 

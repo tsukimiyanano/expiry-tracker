@@ -5,10 +5,7 @@ import {
   writeTextFile,
 } from '@tauri-apps/plugin-fs'
 
-import {
-  APP_DATA_FILE_NAME,
-  APP_DATA_VERSION,
-} from '@/constants/app-data'
+import { APP_DATA_FILE_NAME, APP_DATA_VERSION } from '@/constants/app-data'
 
 import type { AppData } from '@/types/app-data'
 import { validateAppData } from '@/validators/app-data-validator'
@@ -36,9 +33,7 @@ function createEmptyAppData(): AppData {
  */
 let operationQueue: Promise<void> = Promise.resolve()
 
-function enqueueOperation<T>(
-  operation: () => Promise<T>,
-): Promise<T> {
+function enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
   const task = operationQueue.then(operation)
 
   operationQueue = task.then(
@@ -56,10 +51,7 @@ function enqueueOperation<T>(
  * 已存在的数据文件不合法时直接报错，不覆盖原文件。
  */
 async function readAppData(): Promise<AppData> {
-  const fileExists = await exists(
-    APP_DATA_FILE_NAME,
-    FILE_OPTIONS,
-  )
+  const fileExists = await exists(APP_DATA_FILE_NAME, FILE_OPTIONS)
 
   if (!fileExists) {
     const initialData = createEmptyAppData()
@@ -73,10 +65,7 @@ async function readAppData(): Promise<AppData> {
     return initialData
   }
 
-  const content = await readTextFile(
-    APP_DATA_FILE_NAME,
-    FILE_OPTIONS,
-  )
+  const content = await readTextFile(APP_DATA_FILE_NAME, FILE_OPTIONS)
 
   let parsed: unknown
 
@@ -113,11 +102,7 @@ export const appDataRepository = {
     const content = JSON.stringify(data, null, 2)
 
     return enqueueOperation(() =>
-      writeTextFile(
-        APP_DATA_FILE_NAME,
-        content,
-        FILE_OPTIONS,
-      ),
+      writeTextFile(APP_DATA_FILE_NAME, content, FILE_OPTIONS),
     )
   },
 }

@@ -12,7 +12,5 @@ const testOpenUrl = async () => {
 </script>
 
 <template>
-  <button @click="testOpenUrl">
-    测试打开 Bilibili(opener)
-  </button>
+  <button @click="testOpenUrl">测试打开 Bilibili(opener)</button>
 </template>
