@@ -48,6 +48,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.7
         version: 6.0.10(vite@8.3.4(@types/node@26.6.5))(vue@3.5.43(typescript@6.0.3))
+      prettier:
+        specifier: ^3.7.4
+        version: 3.7.4
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -588,6 +591,11 @@ packages:
   postcss@8.5.29:
     resolution: {integrity: sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==, tarball: https://registry.npmmirror.com/postcss/-/postcss-8.5.29.tgz}
     engines: {node: ^10 || ^12 || >=14}
+
+  prettier@3.7.4:
+    resolution: {integrity: sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA==, tarball: https://registry.npmmirror.com/prettier/-/prettier-3.7.4.tgz}
+    engines: {node: '>=14'}
+    hasBin: true
 
   quansync@0.2.11:
     resolution: {integrity: sha512-AifT7QEbW9Nri4tAwR5M/uzpBuqfZf+zwaEM/QkzEjj7NBuFD2rBuy0K3dE+8wltbezDV7JMA0WfnCPYRSYbXA==, tarball: https://registry.npmmirror.com/quansync/-/quansync-0.2.11.tgz}
@@ -1196,6 +1204,8 @@ snapshots:
       nanoid: 3.3.20
       picocolors: 1.1.1
       source-map-js: 1.2.2
+
+  prettier@3.7.4: {}
 
   quansync@0.2.11: {}
 

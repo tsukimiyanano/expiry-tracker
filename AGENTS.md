@@ -22,24 +22,24 @@
 
 以下为 `src/` 下**实际存在**的目录及其职责：
 
-| 目录 | 职责 |
-| --- | --- |
-| `views/` | 页面组件，文件名 `XxxView.vue`，由 router 懒加载 |
-| `components/` | 可复用 UI 组件，按子目录分组（如 `Test/` 为开发测试组件） |
-| `router/` | 路由配置；hash 历史、命名路由、懒加载 |
-| `constants/` | 固定常量（数据文件名、数据格式版本号等） |
-| `types/` | 业务数据模型类型定义，一个领域一个文件 |
-| `utils/` | 通用工具函数：与具体业务领域无关、适合跨模块复用；原则上不依赖 Vue 响应式上下文与 Tauri 原生能力（`import.meta.env` 等构建环境能力除外） |
-| `validators/` | 数据格式与关联关系校验，只判断不修改 |
-| `repositories/` | 数据访问与持久化，唯一允许执行文件 IO 的位置 |
-| `assets/` | 静态资源 |
+| 目录            | 职责                                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `views/`        | 页面组件，文件名 `XxxView.vue`，由 router 懒加载                                                                                         |
+| `components/`   | 可复用 UI 组件，按子目录分组（如 `Test/` 为开发测试组件）                                                                                |
+| `router/`       | 路由配置；hash 历史、命名路由、懒加载                                                                                                    |
+| `constants/`    | 固定常量（数据文件名、数据格式版本号等）                                                                                                 |
+| `types/`        | 业务数据模型类型定义，一个领域一个文件                                                                                                   |
+| `utils/`        | 通用工具函数：与具体业务领域无关、适合跨模块复用；原则上不依赖 Vue 响应式上下文与 Tauri 原生能力（`import.meta.env` 等构建环境能力除外） |
+| `validators/`   | 数据格式与关联关系校验，只判断不修改                                                                                                     |
+| `repositories/` | 数据访问与持久化，唯一允许执行文件 IO 的位置                                                                                             |
+| `assets/`       | 静态资源                                                                                                                                 |
 
 **尚未创建**、按职责预留的目录（创建时遵循以下约定）：
 
-| 目录 | 职责 |
-| --- | --- |
-| `composables/` | 依赖 Vue 响应式/生命周期的可复用逻辑，文件名 `useXxx.ts` |
-| `stores/` | Pinia store（Pinia 已在 `main.ts` 注册，**尚未创建任何 store**）。文件名 kebab-case、以 `-store.ts` 结尾（如 `app-data-store.ts`），导出函数命名 `useXxxStore` |
+| 目录           | 职责                                                                                                                                                           |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `composables/` | 依赖 Vue 响应式/生命周期的可复用逻辑，文件名 `useXxx.ts`                                                                                                       |
+| `stores/`      | Pinia store（Pinia 已在 `main.ts` 注册，**尚未创建任何 store**）。文件名 kebab-case、以 `-store.ts` 结尾（如 `app-data-store.ts`），导出函数命名 `useXxxStore` |
 
 > Store 命名为后续新增时采用的规范，不代表项目已创建这些 Store。Store 数量按状态职责与数据一致性需求合理确定，不按数据模型数量机械拆分，避免重复存储同一份业务状态。
 
@@ -76,7 +76,7 @@
 
 **现行约定**：
 
-- 代码风格已全库统一：单引号、无分号、2 空格缩进（`tsconfig*.json` 等 JSON 配置文件除外）。
+- 代码风格已全库统一：单引号、无分号、2 空格缩进，由 Prettier 维护（配置见 `.prettierrc.json`，行宽 80、尾随逗号 all）。提交代码前执行 `pnpm format`（或确保 `pnpm format:check` 通过）；`tsconfig*.json` 等 JSON 配置文件保留双引号由 Prettier 自动处理，无需手工调整。
 - `tsconfig.json` 已开启 `strict`、`noUnusedLocals`、`noUnusedParameters`、`noFallthroughCasesInSwitch`，不得关闭。
 - 业务数据模型使用 `interface`，定义在 `src/types/`（如 `Category`、`Item`、`AppData`）；仅在单个组件内使用的局部类型就近定义。
 - 纯类型导入使用 `import type`。
@@ -170,8 +170,10 @@ type(scope): description
 - 描述语言：英文（现有历史均为英文）。
 - 提倡小步提交：每次提交只包含一个逻辑完整的修改；必要时在正文补充说明动机与细节。
 
-## 11. 后续规划：代码风格工具
+## 11. 代码风格工具
 
-- 项目当前**没有** ESLint / Prettier 配置（不属于现有项目能力），代码风格依赖约定维护。
-- 后续规划：引入 Prettier 统一格式化、引入 ESLint 检查代码质量，规则采用现有代码风格（单引号、无分号、2 空格缩进）。
-- 引入工具与批量格式化应作为独立任务执行，不与业务功能开发混合。
+- 项目已引入 **Prettier** 作为前端代码与文档的统一格式化工具：配置 `.prettierrc.json`，忽略规则 `.prettierignore`，脚本 `pnpm format` / `pnpm format:check`。
+- Prettier 覆盖 Vue / TS / JS / CSS / JSON / Markdown 等文件；**不负责 Rust**，Rust 代码继续使用 `rustfmt`。
+- 格式化范围由 `.prettierignore` 控制，排除 `node_modules`、`dist`、`src-tauri/target`、`src-tauri/gen`、锁文件等。
+- 批量格式化应作为独立任务执行，不与业务功能开发混合。
+- 后续规划：引入 ESLint 检查代码质量（本次未引入）。

@@ -1,0 +1,16 @@
+# 依赖目录
+node_modules
+
+# 构建产物
+dist
+
+# Tauri 生成文件与 Rust 构建产物
+src-tauri/target
+src-tauri/gen
+
+# 锁文件（由包管理器维护，不格式化）
+pnpm-lock.yaml
+
+# 本地与缓存文件
+*.local
+*.tsbuildinfo

@@ -6,17 +6,17 @@
 
 ## 技术栈
 
-| 类别 | 技术 | 版本 | 用途 |
-| --- | --- | --- | --- |
-| 应用框架 | Tauri | 2.x | 应用壳与原生能力（当前目标平台为 Android） |
-| 前端框架 | Vue | 3.5 | Composition API + `<script setup lang="ts">` |
-| 语言 | TypeScript | 6.0（strict） | 前端类型安全 |
-| 构建工具 | Vite | 8 | 开发服务器与构建 |
-| 路由 | Vue Router | 5.4 | hash 历史、懒加载路由 |
-| 状态管理 | Pinia | 4.0 | 已在 `main.ts` 注册，暂未创建 store |
-| UI 组件库 | Vant | 4.10 | 移动端 UI 组件 |
-| 原生层 | Rust | edition 2024 | Tauri 后端 |
-| 目标平台 | Android | minSdk 24 / targetSdk 37 | 主要开发与运行平台 |
+| 类别      | 技术       | 版本                     | 用途                                         |
+| --------- | ---------- | ------------------------ | -------------------------------------------- |
+| 应用框架  | Tauri      | 2.x                      | 应用壳与原生能力（当前目标平台为 Android）   |
+| 前端框架  | Vue        | 3.5                      | Composition API + `<script setup lang="ts">` |
+| 语言      | TypeScript | 6.0（strict）            | 前端类型安全                                 |
+| 构建工具  | Vite       | 8                        | 开发服务器与构建                             |
+| 路由      | Vue Router | 5.4                      | hash 历史、懒加载路由                        |
+| 状态管理  | Pinia      | 4.0                      | 已在 `main.ts` 注册，暂未创建 store          |
+| UI 组件库 | Vant       | 4.10                     | 移动端 UI 组件                               |
+| 原生层    | Rust       | edition 2024             | Tauri 后端                                   |
+| 目标平台  | Android    | minSdk 24 / targetSdk 37 | 主要开发与运行平台                           |
 
 包管理器：**pnpm**。
 
@@ -83,15 +83,21 @@ expiry-tracker/
 
 ## 常用命令
 
-| 命令 | 说明 |
-| --- | --- |
-| `pnpm install` | 安装前端依赖 |
-| `pnpm dev` | 启动 Vite 开发服务器（固定端口 1420） |
-| `pnpm build` | 类型检查（`vue-tsc --noEmit`）+ 生产构建 |
-| `pnpm preview` | 预览生产构建 |
-| `pnpm exec vue-tsc --noEmit` | 仅执行 TypeScript 类型检查 |
-| `pnpm tauri android dev` | Android 真机 / 模拟器开发运行 |
-| `pnpm tauri android build` | 构建 Android APK / AAB |
+| 命令                         | 说明                                     |
+| ---------------------------- | ---------------------------------------- |
+| `pnpm install`               | 安装前端依赖                             |
+| `pnpm dev`                   | 启动 Vite 开发服务器（固定端口 1420）    |
+| `pnpm build`                 | 类型检查（`vue-tsc --noEmit`）+ 生产构建 |
+| `pnpm preview`               | 预览生产构建                             |
+| `pnpm exec vue-tsc --noEmit` | 仅执行 TypeScript 类型检查               |
+| `pnpm format`                | Prettier 格式化项目文件                  |
+| `pnpm format:check`          | 检查文件是否符合 Prettier 格式规范       |
+| `pnpm tauri android dev`     | Android 真机 / 模拟器开发运行            |
+| `pnpm tauri android build`   | 构建 Android APK / AAB                   |
+
+### 代码格式化
+
+前端代码与文档（Vue / TS / JS / CSS / JSON / Markdown 等）统一使用 [Prettier](https://prettier.io/) 格式化，规则见 `.prettierrc.json`（单引号、无分号、2 空格缩进、行宽 80、尾随逗号 all）。Rust 代码不使用 Prettier，继续使用 `rustfmt`。
 
 > 注意：`pnpm tauri dev`（桌面端）当前缺少 fs 等插件权限——capability 文件有意限定 `platforms: ["android"]`（Android 优先策略），桌面端运行时涉及原生插件的功能将不可用。
 
