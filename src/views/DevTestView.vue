@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NavBar } from 'vant'
 import { useRouter } from 'vue-router'
-import NativePlugin from '../components/Test/NativePlugin.vue'
+import NativePlugin from '@/components/Test/NativePlugin.vue'
 
 const router = useRouter()
 </script>

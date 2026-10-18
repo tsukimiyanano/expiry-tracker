@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-import { Button, NavBar } from "vant";
-import { isDev } from "../utils/env";
+import { useRouter } from 'vue-router'
+import { Button, NavBar } from 'vant'
+import { isDev } from '@/utils/env'
 
-const router = useRouter();
+const router = useRouter()
 
 function goToCategories() {
-  void router.push({ name: "categories" });
+  void router.push({ name: 'categories' })
 }
 </script>
 

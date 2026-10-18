@@ -62,7 +62,7 @@
 - 一律使用 `<script setup lang="ts">`，SFC 块顺序：`script` → `template` → `style scoped`。
 - 只用 Composition API；路由使用 `useRouter()`，命名路由跳转。
 - 忽略 Promise 返回值时使用 `void` 前缀显式标记（如 `void router.push(...)`）。
-- Vant 组件从 `'vant'` 命名导入（如 `import { Button, NavBar } from "vant"`）；样式在 `main.ts` 全量引入 `vant/lib/index.css`。**不使用**自动按需导入插件。
+- Vant 组件从 `'vant'` 命名导入（如 `import { Button, NavBar } from 'vant'`）；样式在 `main.ts` 全量引入 `vant/lib/index.css`。**不使用**自动按需导入插件。
 - 异步原生调用的错误处理模式：`try/catch` + `error instanceof Error ? error.message : String(error)`（参考 `NativePlugin.vue` 的 `errorMessage()`）。
 - 页面样式用 `<style scoped>`，全局样式只放 `App.vue`。
 
@@ -76,6 +76,7 @@
 
 **现行约定**：
 
+- 代码风格已全库统一：单引号、无分号、2 空格缩进（`tsconfig*.json` 等 JSON 配置文件除外）。
 - `tsconfig.json` 已开启 `strict`、`noUnusedLocals`、`noUnusedParameters`、`noFallthroughCasesInSwitch`，不得关闭。
 - 业务数据模型使用 `interface`，定义在 `src/types/`（如 `Category`、`Item`、`AppData`）；仅在单个组件内使用的局部类型就近定义。
 - 纯类型导入使用 `import type`。
@@ -92,11 +93,9 @@
 
 **现行约定**：
 
-- `@` 别名已同时配置于 `vite.config.ts`（`resolve.alias`）与 `tsconfig.json`（`paths`），指向 `src/`。**新代码引用 `src` 内模块一律使用 `@/`**。
+- `@` 别名已同时配置于 `vite.config.ts`（`resolve.alias`）与 `tsconfig.json`（`paths`），指向 `src/`。**`src` 内跨模块引用一律使用 `@/`**（已全库统一；`.vue` 组件导入需保留 `.vue` 扩展名，其余模块不写扩展名）。
 - 第三方依赖使用包名导入：`vue` / `vue-router` / `pinia` / `vant`；Tauri 插件为 `@tauri-apps/plugin-*`。
 - 类型导入单独成行：`import type { AppData } from '@/types/app-data'`。
-
-**已知遗留**：`router/index.ts` 与部分 `views/` 仍使用相对路径导入（`@` 别名配置之前编写）。修改这些文件时**不必**强制替换为 `@/`（避免无关改动），但新增导入遵循 `@/`。
 
 ## 6. 通用逻辑复用
 
@@ -171,12 +170,8 @@ type(scope): description
 - 描述语言：英文（现有历史均为英文）。
 - 提倡小步提交：每次提交只包含一个逻辑完整的修改；必要时在正文补充说明动机与细节。
 
-## 11. 已知不一致（现状记录）
+## 11. 后续规划：代码风格工具
 
-以下事项客观存在，**未经用户决策不要主动批量修改**：
-
-1. 引号风格并存：早期文件使用双引号 + 分号，近期业务代码（types / utils / validators / repositories）使用单引号 + 无分号。**新代码建议沿用单引号 + 无分号**。
-2. `router/` 与 `views/` 存在相对路径导入（见第 5 节）。
-3. `components/Test/rust-plugin.vue` 文件名小写，不符合组件 PascalCase 惯例（开发测试组件）。
-4. `src-tauri/src/lib.rs` 中的 `greet` 命令为脚手架模板遗留。
-5. 项目当前**没有** ESLint / Prettier 配置（不属于现有项目能力），代码风格依赖约定维护。后续规划：引入 Prettier 统一格式化、引入 ESLint 检查代码质量，规则优先采用现有新代码风格（单引号、无分号、2 空格缩进）；引入工具与批量格式化应作为独立任务执行，不与业务功能开发混合。
+- 项目当前**没有** ESLint / Prettier 配置（不属于现有项目能力），代码风格依赖约定维护。
+- 后续规划：引入 Prettier 统一格式化、引入 ESLint 检查代码质量，规则采用现有代码风格（单引号、无分号、2 空格缩进）。
+- 引入工具与批量格式化应作为独立任务执行，不与业务功能开发混合。

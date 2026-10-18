@@ -1,29 +1,29 @@
-import { createRouter, createWebHashHistory } from "vue-router";
-import { isDev } from "../utils/env.ts";
+import { createRouter, createWebHashHistory } from 'vue-router'
+import { isDev } from '@/utils/env'
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
-      path: "/",
-      name: "home",
-      component: () => import("../views/HomeView.vue"),
+      path: '/',
+      name: 'home',
+      component: () => import('@/views/HomeView.vue'),
     },
     {
-      path: "/categories",
-      name: "categories",
-      component: () => import("../views/CategoriesView.vue"),
+      path: '/categories',
+      name: 'categories',
+      component: () => import('@/views/CategoriesView.vue'),
     },
     ...(isDev()
       ? [
           {
-            path: "/dev-test",
-            name: "DevTest",
-            component: () => import("../views/DevTestView.vue"),
+            path: '/dev-test',
+            name: 'DevTest',
+            component: () => import('@/views/DevTestView.vue'),
           },
         ]
       : []),
   ],
-});
+})
 
-export default router;
+export default router

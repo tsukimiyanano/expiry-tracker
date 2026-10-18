@@ -1,4 +1,4 @@
-import { StringUtils } from './string'
+import { StringUtils } from '@/utils/string'
 
 export const ArrayUtils = {
   isStringArray(value: unknown): value is string[] {

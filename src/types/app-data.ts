@@ -1,6 +1,6 @@
-import type { Category } from './category'
-import type { ItemGroup } from './item-group'
-import type { Item } from './item'
+import type { Category } from '@/types/category'
+import type { ItemGroup } from '@/types/item-group'
+import type { Item } from '@/types/item'
 
 export interface AppData {
   version: number
