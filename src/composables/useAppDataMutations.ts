@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 
 import { appDataRepository } from '@/repositories/app-data-repository'
+import { AsyncUtils } from '@/utils/async'
 import { ErrorUtils } from '@/utils/error'
 import { isValidDateOnly } from '@/utils/date'
 import { StringUtils } from '@/utils/string'
@@ -58,7 +59,8 @@ function createItemRecord(input: AddItemToGroupInput, groupId: string): Item {
 export function useAppDataMutations(options: AppDataMutationOptions) {
   const { data, initialize, error, saving } = options
 
-  let mutationQueue: Promise<void> = Promise.resolve()
+  // 变更串行执行；单个操作失败不阻塞后续操作。
+  const mutationQueue = AsyncUtils.createSerialQueue()
   let pendingMutationCount = 0
 
   function updateData<T>(
@@ -67,7 +69,7 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
     pendingMutationCount += 1
     saving.value = true
 
-    const task = mutationQueue.then(async () => {
+    return mutationQueue.enqueue(async () => {
       error.value = null
 
       try {
@@ -95,14 +97,6 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
         saving.value = pendingMutationCount > 0
       }
     })
-
-    // 当前操作失败不应阻塞后续操作。
-    mutationQueue = task.then(
-      () => undefined,
-      () => undefined,
-    )
-
-    return task
   }
 
   function createItem(

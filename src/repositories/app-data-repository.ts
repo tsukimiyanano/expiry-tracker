@@ -6,6 +6,7 @@ import {
 } from '@tauri-apps/plugin-fs'
 
 import { APP_DATA_FILE_NAME, APP_DATA_VERSION } from '@/constants/app-data'
+import { AsyncUtils } from '@/utils/async'
 
 import type { AppData } from '@/types/app-data'
 import { validateAppData } from '@/validators/app-data-validator'
@@ -29,20 +30,10 @@ function createEmptyAppData(): AppData {
 /**
  * 串行执行 Repository 的文件操作。
  *
- * 防止同一运行实例内的读取和写入交叉执行。
+ * 防止同一运行实例内的读取和写入交叉执行；
+ * 单个操作失败不阻塞后续操作。
  */
-let operationQueue: Promise<void> = Promise.resolve()
-
-function enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {
-  const task = operationQueue.then(operation)
-
-  operationQueue = task.then(
-    () => undefined,
-    () => undefined,
-  )
-
-  return task
-}
+const operationQueue = AsyncUtils.createSerialQueue()
 
 /**
  * 读取应用数据。
@@ -88,7 +79,7 @@ export const appDataRepository = {
    * 加载并验证应用数据
    */
   load(): Promise<AppData> {
-    return enqueueOperation(readAppData)
+    return operationQueue.enqueue(readAppData)
   },
 
   /**
@@ -101,7 +92,7 @@ export const appDataRepository = {
     // 导致保存内容与调用时不一致。
     const content = JSON.stringify(data, null, 2)
 
-    return enqueueOperation(() =>
+    return operationQueue.enqueue(() =>
       writeTextFile(APP_DATA_FILE_NAME, content, FILE_OPTIONS),
     )
   },
