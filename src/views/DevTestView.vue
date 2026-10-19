@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { NavBar } from 'vant'
 import { useRouter } from 'vue-router'
+import AppDataTest from '@/components/Test/AppDataTest.vue'
 import NativePlugin from '@/components/Test/NativePlugin.vue'
 
 const router = useRouter()
@@ -14,6 +15,8 @@ const router = useRouter()
       left-arrow
       @click-left="router.back()"
     />
+
+    <AppDataTest />
 
     <NativePlugin />
   </div>
