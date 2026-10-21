@@ -5,8 +5,21 @@ import { Button, NavBar, Tag } from 'vant'
 import { useRouter } from 'vue-router'
 
 import { useAppDataStore } from '@/stores/app-data-store'
+import { DateUtils } from '@/utils/date'
+import type { ExpiryStatus } from '@/utils/date'
 import { ErrorUtils } from '@/utils/error'
 import { isDev } from '@/utils/env'
+
+const EXPIRY_TAG_TYPES: Record<
+  ExpiryStatus,
+  'success' | 'danger' | 'warning' | 'primary'
+> = {
+  used: 'success',
+  expired: 'danger',
+  today: 'danger',
+  soon: 'warning',
+  normal: 'primary',
+}
 
 const router = useRouter()
 const store = useAppDataStore()
@@ -32,6 +45,11 @@ const listGroups = computed(() => {
     .map((group) => {
       const groupItems = items.value
         .filter((item) => item.groupId === group.id)
+        .map((item) => ({
+          ...item,
+          // 统一在数据层计算状态，模板只负责展示。
+          expiryStatus: DateUtils.getExpiryStatus(item.expireDate, item.isUsed),
+        }))
         .sort((a, b) => {
           // 未用完的物品排在前面，再按日期升序排列。
           if (a.isUsed !== b.isUsed) {
@@ -142,8 +160,9 @@ const listGroups = computed(() => {
               <div class="item-date">到期日期：{{ item.expireDate }}</div>
             </div>
 
-            <Tag v-if="item.isUsed" type="success">已用完</Tag>
-            <Tag v-else type="default">未用完</Tag>
+            <Tag :type="EXPIRY_TAG_TYPES[item.expiryStatus.status]">
+              {{ item.expiryStatus.label }}
+            </Tag>
           </div>
         </section>
       </template>
