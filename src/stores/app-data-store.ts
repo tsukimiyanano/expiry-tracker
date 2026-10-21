@@ -57,7 +57,7 @@ export const useAppDataStore = defineStore('app-data', () => {
     return task
   }
 
-  const { createItem, addItemToGroup } = useAppDataMutations({
+  const mutations = useAppDataMutations({
     data,
     initialize,
     error,
@@ -74,7 +74,6 @@ export const useAppDataStore = defineStore('app-data', () => {
     saving,
     error,
     initialize,
-    createItem,
-    addItemToGroup,
+    ...mutations,
   }
 })

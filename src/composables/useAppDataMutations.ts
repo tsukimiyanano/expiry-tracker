@@ -1,9 +1,10 @@
 import type { Ref } from 'vue'
 
 import { appDataRepository } from '@/repositories/app-data-repository'
+import { useAppDataEditing } from '@/composables/useAppDataEditing'
 import { AsyncUtils } from '@/utils/async'
 import { ErrorUtils } from '@/utils/error'
-import { isValidDateOnly } from '@/utils/date'
+import { DateUtils } from '@/utils/date'
 import { StringUtils } from '@/utils/string'
 import type { AppData } from '@/types/app-data'
 import type { Category } from '@/types/category'
@@ -37,7 +38,7 @@ interface AppDataMutationOptions {
 }
 
 function createItemRecord(input: AddItemToGroupInput, groupId: string): Item {
-  if (!isValidDateOnly(input.expireDate)) {
+  if (!DateUtils.isValidDateOnly(input.expireDate)) {
     throw new Error('请填写有效的过期日期')
   }
 
@@ -190,8 +191,11 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
     })
   }
 
+  const editing = useAppDataEditing(updateData)
+
   return {
     createItem,
     addItemToGroup,
+    ...editing,
   }
 }

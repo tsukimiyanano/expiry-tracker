@@ -1,14 +1,16 @@
-/**
- * 校验 YYYY-MM-DD 格式的日期字符串，且日期必须真实存在。
- */
-export function isValidDateOnly(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false
-  }
+export const DateUtils = {
+  /**
+   * 校验 YYYY-MM-DD 格式的日期字符串，且日期必须真实存在。
+   */
+  isValidDateOnly(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return false
+    }
 
-  const date = new Date(`${value}T00:00:00.000Z`)
+    const date = new Date(`${value}T00:00:00.000Z`)
 
-  return (
-    !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-  )
+    return (
+      !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+    )
+  },
 }
