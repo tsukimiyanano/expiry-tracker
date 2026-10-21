@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Button, NavBar, Tag } from 'vant'
+import { Button, NavBar, Tag, showConfirmDialog } from 'vant'
 import { useRouter } from 'vue-router'
 
+import ItemFormPopup from '@/components/items/ItemFormPopup.vue'
 import { useAppDataStore } from '@/stores/app-data-store'
+import type { Item } from '@/types/item'
+import type { ItemGroup } from '@/types/item-group'
 import { DateUtils } from '@/utils/date'
 import type { ExpiryStatus } from '@/utils/date'
 import { ErrorUtils } from '@/utils/error'
@@ -35,6 +38,69 @@ onMounted(() => {
 const errorMessage = computed(() =>
   error.value ? ErrorUtils.getMessage(error.value) : '',
 )
+
+type ItemFormMode = 'create' | 'add' | 'edit'
+
+const itemFormVisible = ref(false)
+const itemFormMode = ref<ItemFormMode>('create')
+const selectedGroup = ref<ItemGroup | null>(null)
+const selectedItem = ref<Item | null>(null)
+
+const deletingItemId = ref<string | null>(null)
+const operationError = ref<string | null>(null)
+
+function openCreateItem() {
+  if (saving.value) return
+
+  itemFormMode.value = 'create'
+  selectedGroup.value = null
+  selectedItem.value = null
+  itemFormVisible.value = true
+}
+
+function openAddItem(group: ItemGroup) {
+  if (saving.value) return
+
+  itemFormMode.value = 'add'
+  selectedGroup.value = group
+  selectedItem.value = null
+  itemFormVisible.value = true
+}
+
+function openEditItem(item: Item) {
+  if (saving.value) return
+
+  itemFormMode.value = 'edit'
+  selectedItem.value = item
+  selectedGroup.value = null
+  itemFormVisible.value = true
+}
+
+async function confirmDeleteItem(item: Item) {
+  if (saving.value || deletingItemId.value) return
+
+  try {
+    await showConfirmDialog({
+      title: '删除物品',
+      message: '确定删除这件物品吗？删除后无法恢复。',
+      confirmButtonColor: 'var(--van-danger-color)',
+    })
+  } catch {
+    // 用户取消确认，不执行删除。
+    return
+  }
+
+  deletingItemId.value = item.id
+  operationError.value = null
+
+  try {
+    await store.deleteItem(item.id)
+  } catch (error) {
+    operationError.value = ErrorUtils.getMessage(error)
+  } finally {
+    deletingItemId.value = null
+  }
+}
 
 const listGroups = computed(() => {
   const categoryMap = new Map(
@@ -97,6 +163,22 @@ const listGroups = computed(() => {
     <main class="home-content">
       <div v-if="saving" class="saving-tip">正在保存数据…</div>
 
+      <div v-if="initialized" class="create-entry">
+        <Button
+          block
+          type="primary"
+          icon="plus"
+          :disabled="loading || saving"
+          @click="openCreateItem"
+        >
+          新建物品
+        </Button>
+      </div>
+
+      <p v-if="operationError" class="operation-error">
+        {{ operationError }}
+      </p>
+
       <div v-if="loading && !initialized" class="state-message">
         正在加载物品数据…
       </div>
@@ -142,6 +224,18 @@ const listGroups = computed(() => {
             </Tag>
           </div>
 
+          <div class="group-actions">
+            <Button
+              size="small"
+              plain
+              type="primary"
+              :disabled="saving"
+              @click="openAddItem(group)"
+            >
+              添加同组物品
+            </Button>
+          </div>
+
           <div
             v-for="item in group.items"
             :key="item.id"
@@ -160,9 +254,33 @@ const listGroups = computed(() => {
               <div class="item-date">到期日期：{{ item.expireDate }}</div>
             </div>
 
-            <Tag :type="EXPIRY_TAG_TYPES[item.expiryStatus.status]">
-              {{ item.expiryStatus.label }}
-            </Tag>
+            <div class="item-side">
+              <Tag :type="EXPIRY_TAG_TYPES[item.expiryStatus.status]">
+                {{ item.expiryStatus.label }}
+              </Tag>
+
+              <div class="item-actions">
+                <Button
+                  size="mini"
+                  plain
+                  :disabled="saving"
+                  @click="openEditItem(item)"
+                >
+                  编辑
+                </Button>
+
+                <Button
+                  size="mini"
+                  plain
+                  type="danger"
+                  :loading="deletingItemId === item.id"
+                  :disabled="saving"
+                  @click="confirmDeleteItem(item)"
+                >
+                  删除
+                </Button>
+              </div>
+            </div>
           </div>
         </section>
       </template>
@@ -173,6 +291,13 @@ const listGroups = computed(() => {
         </Button>
       </div>
     </main>
+
+    <ItemFormPopup
+      v-model:show="itemFormVisible"
+      :mode="itemFormMode"
+      :group="selectedGroup"
+      :item="selectedItem"
+    />
   </div>
 </template>
 
@@ -191,6 +316,17 @@ const listGroups = computed(() => {
   color: var(--van-text-color-2, #646566);
   font-size: 12px;
   text-align: right;
+}
+
+.create-entry {
+  margin-bottom: 12px;
+}
+
+.operation-error {
+  margin: 0 0 12px;
+  color: var(--van-danger-color, #ee0a24);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .state-message {
@@ -252,6 +388,10 @@ const listGroups = computed(() => {
   padding: 0 12px 10px;
 }
 
+.group-actions {
+  padding: 0 12px 10px;
+}
+
 .item-row {
   display: flex;
   align-items: center;
@@ -288,6 +428,19 @@ const listGroups = computed(() => {
 .item-row-used .item-name,
 .item-row-used .item-date {
   color: var(--van-text-color-3, #c8c9cc);
+}
+
+.item-side {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.item-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .dev-entry {
