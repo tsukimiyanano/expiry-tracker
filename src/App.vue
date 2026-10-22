@@ -1,45 +1,75 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { RouterView } from 'vue-router'
-import { exit, onBackButtonPress } from '@tauri-apps/api/app'
+import { onBackButtonPress } from '@tauri-apps/api/app'
 import { isTauri } from '@tauri-apps/api/core'
 import type { PluginListener } from '@tauri-apps/api/core'
 
-import { runBackButtonHandlers } from '@/composables/useBackButtonHandler'
+import {
+  hasBackButtonHandlers,
+  runBackButtonHandlers,
+  subscribeBackButtonHandlers,
+} from '@/composables/useBackButtonHandler'
 
 let backButtonListener: PluginListener | null = null
+let unsubscribeHandlers: (() => void) | null = null
+let syncQueue: Promise<void> = Promise.resolve()
 
 async function handleBackButtonPress(canGoBack: boolean) {
-  // 打开中的弹窗优先处理，返回 false 时继续走路由回退或退出应用。
   if (await runBackButtonHandlers()) return
 
+  // 注销瞬间的竞态兜底：保留路由回退，不主动结束应用。
   if (canGoBack) {
     window.history.back()
-    return
-  }
-
-  try {
-    await exit(0)
-  } catch {
-    // 退出失败时保持应用运行，避免返回键被完全吞掉。
   }
 }
 
-onMounted(async () => {
+/**
+ * 只有存在打开中的弹窗时才注册返回键监听。
+ * 全部弹窗关闭后注销，把返回键交还给 Android 默认行为
+ * （无路由历史时退到后台，而不是结束应用进程）。
+ */
+function syncBackButtonListener() {
+  syncQueue = syncQueue
+    .then(async () => {
+      const shouldListen = hasBackButtonHandlers()
+
+      if (shouldListen && !backButtonListener) {
+        backButtonListener = await onBackButtonPress(({ canGoBack }) => {
+          void handleBackButtonPress(canGoBack)
+        })
+
+        return
+      }
+
+      if (!shouldListen && backButtonListener) {
+        const listener = backButtonListener
+        backButtonListener = null
+
+        await listener.unregister()
+      }
+    })
+    .catch(() => undefined)
+}
+
+onMounted(() => {
   // 浏览器环境没有 Android 返回键，保留开发调试时的默认行为。
   if (!isTauri()) return
 
-  try {
-    backButtonListener = await onBackButtonPress(({ canGoBack }) => {
-      void handleBackButtonPress(canGoBack)
-    })
-  } catch {
-    // 注册失败时保留系统默认返回行为。
-  }
+  unsubscribeHandlers = subscribeBackButtonHandlers(syncBackButtonListener)
+  syncBackButtonListener()
 })
 
 onUnmounted(() => {
-  void backButtonListener?.unregister()
+  unsubscribeHandlers?.()
+  unsubscribeHandlers = null
+
+  if (backButtonListener) {
+    const listener = backButtonListener
+    backButtonListener = null
+
+    void listener.unregister().catch(() => undefined)
+  }
 })
 </script>
 

@@ -6,7 +6,6 @@
   "platforms": ["android"],
   "permissions": [
     "core:default",
-    "core:app:allow-exit",
     "opener:default",
     "fs:default",
     "fs:allow-appdata-write",

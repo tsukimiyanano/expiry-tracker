@@ -1,8 +1,15 @@
-import { onUnmounted } from 'vue'
+import { onUnmounted, watch } from 'vue'
 
 type BackButtonHandler = () => boolean | Promise<boolean>
 
 const handlers: BackButtonHandler[] = []
+const changeListeners = new Set<() => void>()
+
+function notifyChange() {
+  for (const listener of changeListeners) {
+    listener()
+  }
+}
 
 /**
  * 注册返回键处理器，返回注销函数。
@@ -14,13 +21,30 @@ export function registerBackButtonHandler(
   handler: BackButtonHandler,
 ): () => void {
   handlers.push(handler)
+  notifyChange()
 
   return () => {
     const index = handlers.indexOf(handler)
 
-    if (index !== -1) {
-      handlers.splice(index, 1)
-    }
+    if (index === -1) return
+
+    handlers.splice(index, 1)
+    notifyChange()
+  }
+}
+
+export function hasBackButtonHandlers(): boolean {
+  return handlers.length > 0
+}
+
+/**
+ * 订阅处理器数量变化，用于动态注册 / 注销平台的返回键监听。
+ */
+export function subscribeBackButtonHandlers(listener: () => void): () => void {
+  changeListeners.add(listener)
+
+  return () => {
+    changeListeners.delete(listener)
   }
 }
 
@@ -36,19 +60,35 @@ export async function runBackButtonHandlers(): Promise<boolean> {
 
 /**
  * 组件内注册返回键处理器，仅在 isActive() 为 true 时消费返回键。
- * 组件卸载时自动注销。
+ * 弹窗关闭后自动注销，让系统恢复默认返回行为；组件卸载时同样注销。
  */
 export function useBackButtonHandler(
   isActive: () => boolean,
   handler: () => void | Promise<void>,
 ) {
-  const unregister = registerBackButtonHandler(() => {
-    if (!isActive()) return false
+  let unregister: (() => void) | null = null
 
-    void Promise.resolve(handler()).catch(() => undefined)
+  function sync(active: boolean) {
+    if (active && !unregister) {
+      unregister = registerBackButtonHandler(() => {
+        void Promise.resolve(handler()).catch(() => undefined)
 
-    return true
+        return true
+      })
+
+      return
+    }
+
+    if (!active && unregister) {
+      unregister()
+      unregister = null
+    }
+  }
+
+  watch(isActive, (active) => sync(active), { immediate: true })
+
+  onUnmounted(() => {
+    unregister?.()
+    unregister = null
   })
-
-  onUnmounted(unregister)
 }
