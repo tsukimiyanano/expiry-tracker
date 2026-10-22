@@ -4,6 +4,7 @@ import { Button, Field, Form, Popup, Switch } from 'vant'
 import type { FieldRule } from 'vant'
 
 import CategoryMultiSelect from '@/components/categories/CategoryMultiSelect.vue'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { Item } from '@/types/item'
 import type { ItemGroup } from '@/types/item-group'
@@ -62,6 +63,19 @@ const title = computed(() => {
 
 const requiresGroupName = computed(() => props.mode === 'create')
 
+const { captureInitialState, confirmDiscard } = useUnsavedChangesGuard()
+
+function getFormValues() {
+  return {
+    groupName: groupName.value,
+    categoryNames: [...categoryNames.value],
+    productName: productName.value,
+    expireDate: expireDate.value,
+    note: note.value,
+    isUsed: isUsed.value,
+  }
+}
+
 function resetForm() {
   groupName.value = ''
   categoryNames.value = []
@@ -77,6 +91,8 @@ function resetForm() {
     note.value = props.item.note
     isUsed.value = props.item.isUsed
   }
+
+  captureInitialState(getFormValues())
 }
 
 watch(
@@ -92,8 +108,11 @@ watch(
   { immediate: true },
 )
 
-function close() {
-  if (submitting.value) return
+async function close() {
+  if (submitting.value || store.saving) return
+
+  if (!(await confirmDiscard(getFormValues()))) return
+
   emit('update:show', false)
 }
 
@@ -165,14 +184,9 @@ async function submit() {
     position="bottom"
     round
     closeable
-    :close-on-click-overlay="!submitting"
-    :close-on-popstate="!submitting"
+    :close-on-click-overlay="false"
+    :close-on-popstate="false"
     :style="{ maxHeight: '90%' }"
-    @update:show="
-      (value) => {
-        if (!value) close()
-      }
-    "
     @click-close-icon="close"
   >
     <div class="item-form">

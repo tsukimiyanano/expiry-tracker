@@ -4,6 +4,7 @@ import { Button, Field, Form, Popup, showConfirmDialog } from 'vant'
 import type { FieldRule } from 'vant'
 
 import CategoryMultiSelect from '@/components/categories/CategoryMultiSelect.vue'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { ItemGroup } from '@/types/item-group'
 import { ErrorUtils } from '@/utils/error'
@@ -35,6 +36,15 @@ const operationError = ref<string | null>(null)
 
 const busy = ref(false)
 
+const { captureInitialState, confirmDiscard } = useUnsavedChangesGuard()
+
+function getFormValues() {
+  return {
+    name: name.value,
+    categoryNames: [...categoryNames.value],
+  }
+}
+
 watch(
   [() => props.show, () => props.group?.id],
   () => {
@@ -49,12 +59,17 @@ watch(
       .filter((value): value is string => value !== undefined)
 
     operationError.value = null
+
+    captureInitialState(getFormValues())
   },
   { immediate: true },
 )
 
-function close() {
-  if (busy.value) return
+async function close() {
+  if (busy.value || store.saving) return
+
+  if (!(await confirmDiscard(getFormValues()))) return
+
   emit('update:show', false)
 }
 
@@ -122,14 +137,9 @@ async function deleteGroup() {
     position="bottom"
     round
     closeable
-    :close-on-click-overlay="!busy"
-    :close-on-popstate="!busy"
+    :close-on-click-overlay="false"
+    :close-on-popstate="false"
     :style="{ maxHeight: '90%' }"
-    @update:show="
-      (value) => {
-        if (!value) close()
-      }
-    "
     @click-close-icon="close"
   >
     <div class="group-form">
