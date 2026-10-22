@@ -9,6 +9,7 @@ import { showConfirmDialog } from 'vant'
  */
 export function useUnsavedChangesGuard() {
   const initialSnapshot = ref('')
+  let confirming = false
 
   function captureInitialState(value: unknown) {
     initialSnapshot.value = JSON.stringify(value)
@@ -21,6 +22,11 @@ export function useUnsavedChangesGuard() {
   async function confirmDiscard(value: unknown): Promise<boolean> {
     if (!hasChanges(value)) return true
 
+    // 连续触发（例如连按返回键）时不重复弹出确认框。
+    if (confirming) return false
+
+    confirming = true
+
     try {
       await showConfirmDialog({
         title: '放弃修改？',
@@ -32,6 +38,8 @@ export function useUnsavedChangesGuard() {
       return true
     } catch {
       return false
+    } finally {
+      confirming = false
     }
   }
 

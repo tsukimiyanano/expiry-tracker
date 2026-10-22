@@ -4,6 +4,7 @@ import { Button, Field, Form, Popup, showConfirmDialog } from 'vant'
 import type { FieldRule } from 'vant'
 
 import CategoryMultiSelect from '@/components/categories/CategoryMultiSelect.vue'
+import { useBackButtonHandler } from '@/composables/useBackButtonHandler'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { ItemGroup } from '@/types/item-group'
@@ -72,6 +73,12 @@ async function close() {
 
   emit('update:show', false)
 }
+
+// Android 返回键先交给弹窗处理，避免直接退出应用丢失表单内容。
+useBackButtonHandler(
+  () => props.show,
+  () => close(),
+)
 
 async function saveGroup() {
   if (busy.value || store.saving || !props.group) return

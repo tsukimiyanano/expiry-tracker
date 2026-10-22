@@ -17,6 +17,8 @@ import type { FieldRule } from 'vant'
 import { useRouter } from 'vue-router'
 
 import { useAppDataStore } from '@/stores/app-data-store'
+import { useBackButtonHandler } from '@/composables/useBackButtonHandler'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import type { Category } from '@/types/category'
 import { ErrorUtils } from '@/utils/error'
 import { StringUtils } from '@/utils/string'
@@ -112,6 +114,14 @@ onMounted(() => {
   }
 })
 
+const { captureInitialState, confirmDiscard } = useUnsavedChangesGuard()
+
+function getFormValues() {
+  return {
+    name: editName.value,
+  }
+}
+
 function openEdit(category: Category) {
   if (busy.value) return
 
@@ -119,19 +129,25 @@ function openEdit(category: Category) {
   editName.value = category.name
   editError.value = null
   editVisible.value = true
+
+  captureInitialState(getFormValues())
 }
 
-function closeEdit() {
-  if (submitting.value) return
+async function closeEdit() {
+  if (submitting.value || store.saving) return
+
+  if (!(await confirmDiscard(getFormValues()))) return
 
   editVisible.value = false
   editingCategory.value = null
   editError.value = null
 }
 
-function onEditVisibleChange(value: boolean) {
-  if (!value) closeEdit()
-}
+// Android 返回键先交给弹窗处理，避免直接返回首页丢失编辑内容。
+useBackButtonHandler(
+  () => editVisible.value,
+  () => closeEdit(),
+)
 
 async function submitEdit() {
   if (busy.value || !editingCategory.value) return
@@ -294,9 +310,8 @@ async function confirmDelete(category: Category, groupCount: number) {
       position="bottom"
       round
       closeable
-      :close-on-click-overlay="!submitting"
-      :close-on-popstate="!submitting"
-      @update:show="onEditVisibleChange"
+      :close-on-click-overlay="false"
+      :close-on-popstate="false"
       @click-close-icon="closeEdit"
     >
       <div class="category-editor">
