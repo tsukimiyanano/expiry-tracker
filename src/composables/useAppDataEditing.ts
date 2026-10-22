@@ -1,3 +1,4 @@
+import { resolveCategoryNames } from '@/services/category-service'
 import type { AppData } from '@/types/app-data'
 import type { Category } from '@/types/category'
 import type { Item } from '@/types/item'
@@ -44,31 +45,13 @@ export function useAppDataEditing(updateData: AppDataUpdater) {
       let categories = current.categories
 
       if (input.categoryNames !== undefined) {
-        categories = [...current.categories]
-        categoryIds = []
-        const seen = new Set<string>()
+        const resolved = resolveCategoryNames(
+          current.categories,
+          input.categoryNames,
+        )
 
-        for (const rawName of input.categoryNames) {
-          const categoryName = rawName.trim()
-          const key = StringUtils.normalizeName(categoryName)
-
-          if (!key || seen.has(key)) continue
-          seen.add(key)
-
-          let category = categories.find(
-            (c) => StringUtils.normalizeName(c.name) === key,
-          )
-
-          if (!category) {
-            category = {
-              id: StringUtils.createId('cat'),
-              name: categoryName,
-            }
-            categories.push(category)
-          }
-
-          categoryIds.push(category.id)
-        }
+        categories = resolved.categories
+        categoryIds = resolved.categoryIds
       }
 
       const updatedGroup: ItemGroup = {

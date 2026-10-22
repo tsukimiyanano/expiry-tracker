@@ -1,13 +1,13 @@
 import type { Ref } from 'vue'
 
 import { appDataRepository } from '@/repositories/app-data-repository'
+import { resolveCategoryNames } from '@/services/category-service'
 import { useAppDataEditing } from '@/composables/useAppDataEditing'
 import { AsyncUtils } from '@/utils/async'
 import { ErrorUtils } from '@/utils/error'
 import { DateUtils } from '@/utils/date'
 import { StringUtils } from '@/utils/string'
 import type { AppData } from '@/types/app-data'
-import type { Category } from '@/types/category'
 import type { Item } from '@/types/item'
 import type { ItemGroup } from '@/types/item-group'
 
@@ -111,35 +111,10 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
       }
 
       const now = new Date().toISOString()
-      const nextCategories: Category[] = [...current.categories]
-      const categoryIds: string[] = []
-      const seenNames = new Set<string>()
-
-      for (const rawName of input.categoryNames ?? []) {
-        const categoryName = rawName.trim()
-        const normalizedName = StringUtils.normalizeName(categoryName)
-
-        if (!normalizedName || seenNames.has(normalizedName)) {
-          continue
-        }
-
-        seenNames.add(normalizedName)
-
-        let category = nextCategories.find(
-          (item) => StringUtils.normalizeName(item.name) === normalizedName,
-        )
-
-        if (!category) {
-          category = {
-            id: StringUtils.createId('cat'),
-            name: categoryName,
-          }
-
-          nextCategories.push(category)
-        }
-
-        categoryIds.push(category.id)
-      }
+      const { categories: nextCategories, categoryIds } = resolveCategoryNames(
+        current.categories,
+        input.categoryNames ?? [],
+      )
 
       const group: ItemGroup = {
         id: StringUtils.createId('grp'),

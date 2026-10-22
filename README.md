@@ -57,9 +57,12 @@ expiry-tracker/
 ├── src/                        # 前端源码
 │   ├── assets/                 # 静态资源
 │   ├── components/             # 可复用 UI 组件（按子目录分组，如 Test/）
+│   ├── composables/            # 依赖 Vue 响应式的业务逻辑（useXxx.ts）
 │   ├── constants/              # 固定常量（数据文件名、数据版本号）
 │   ├── repositories/           # 数据访问与持久化（JSON 文件读写）
 │   ├── router/                 # Vue Router 配置
+│   ├── services/               # 依赖业务模型的可复用业务规则
+│   ├── stores/                 # Pinia store（状态管理与初始化）
 │   ├── types/                  # 数据模型类型定义
 │   ├── utils/                  # 通用工具（业务无关、可跨模块复用）
 │   ├── validators/             # 数据格式与关联关系校验

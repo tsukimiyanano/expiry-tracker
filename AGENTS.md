@@ -33,6 +33,7 @@
 | `types/`        | 业务数据模型类型定义，一个领域一个文件                                                                                                                                                   |
 | `utils/`        | 通用工具函数：与具体业务领域无关、适合跨模块复用；原则上不依赖 Vue 响应式上下文与 Tauri 原生能力（`import.meta.env` 等构建环境能力除外）                                                 |
 | `validators/`   | 数据格式与关联关系校验，只判断不修改                                                                                                                                                     |
+| `services/`     | 依赖业务模型、但不依赖 Vue 的可复用业务规则（如 `category-service.ts` 的分类名称解析与复用）                                                                                             |
 | `repositories/` | 数据访问与持久化，唯一允许执行文件 IO 的位置                                                                                                                                             |
 | `assets/`       | 静态资源                                                                                                                                                                                 |
 
@@ -44,7 +45,7 @@
 
 ### 分层协作
 
-- 依赖方向：`views / components` →（`stores`、`composables`）→ `repositories` → `validators` / `constants` / `types`；`utils` 被所有层复用，但不反向依赖业务层。
+- 依赖方向：`views / components` →（`stores`、`composables`）→ `services` / `repositories` → `validators` / `constants` / `types`；`utils` 被所有层复用，但不反向依赖业务层。
 - **文件 IO 只发生在 `repositories/`**，页面与 store 不得直接调用 `@tauri-apps/plugin-fs`（`components/Test/` 下的开发测试组件除外）。
 - 数据写盘前必须经过 `validators/` 校验；校验函数不得修改传入数据。
 
