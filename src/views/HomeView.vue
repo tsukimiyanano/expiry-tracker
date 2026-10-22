@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { Button, NavBar, Tag, showConfirmDialog } from 'vant'
 import { useRouter } from 'vue-router'
 
+import GroupEditPopup from '@/components/items/GroupEditPopup.vue'
 import ItemFormPopup from '@/components/items/ItemFormPopup.vue'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { Item } from '@/types/item'
@@ -48,6 +49,16 @@ const selectedItem = ref<Item | null>(null)
 
 const deletingItemId = ref<string | null>(null)
 const operationError = ref<string | null>(null)
+
+const groupEditVisible = ref(false)
+const editingGroup = ref<ItemGroup | null>(null)
+
+const editingGroupItemCount = computed(() => {
+  if (!editingGroup.value) return 0
+
+  return items.value.filter((item) => item.groupId === editingGroup.value?.id)
+    .length
+})
 
 function openCreateItem() {
   if (saving.value) return
@@ -100,6 +111,13 @@ async function confirmDeleteItem(item: Item) {
   } finally {
     deletingItemId.value = null
   }
+}
+
+function openEditGroup(group: ItemGroup) {
+  if (saving.value) return
+
+  editingGroup.value = group
+  groupEditVisible.value = true
 }
 
 const listGroups = computed(() => {
@@ -234,6 +252,16 @@ const listGroups = computed(() => {
             >
               添加同组物品
             </Button>
+
+            <Button
+              size="small"
+              plain
+              icon="edit"
+              :disabled="saving"
+              @click="openEditGroup(group)"
+            >
+              管理分组
+            </Button>
           </div>
 
           <div
@@ -297,6 +325,12 @@ const listGroups = computed(() => {
       :mode="itemFormMode"
       :group="selectedGroup"
       :item="selectedItem"
+    />
+
+    <GroupEditPopup
+      v-model:show="groupEditVisible"
+      :group="editingGroup"
+      :item-count="editingGroupItemCount"
     />
   </div>
 </template>
@@ -389,6 +423,9 @@ const listGroups = computed(() => {
 }
 
 .group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 0 12px 10px;
 }
 

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Button, Field, Form, Popup, Switch } from 'vant'
 import type { FieldRule } from 'vant'
 
+import CategoryMultiSelect from '@/components/categories/CategoryMultiSelect.vue'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { Item } from '@/types/item'
 import type { ItemGroup } from '@/types/item-group'
@@ -39,7 +40,7 @@ const emit = defineEmits<{
 const store = useAppDataStore()
 
 const groupName = ref('')
-const categoryText = ref('')
+const categoryNames = ref<string[]>([])
 const productName = ref('')
 const expireDate = ref('')
 const note = ref('')
@@ -63,7 +64,7 @@ const requiresGroupName = computed(() => props.mode === 'create')
 
 function resetForm() {
   groupName.value = ''
-  categoryText.value = ''
+  categoryNames.value = []
   productName.value = ''
   expireDate.value = DateUtils.getTodayDateOnly()
   note.value = ''
@@ -124,10 +125,7 @@ async function submit() {
       case 'create':
         await store.createItem({
           name: groupName.value.trim(),
-          categoryNames: categoryText.value
-            .split(/[,，]/)
-            .map((name) => name.trim())
-            .filter(Boolean),
+          categoryNames: categoryNames.value,
           ...input,
         })
         break
@@ -191,12 +189,14 @@ async function submit() {
             :rules="groupNameRules"
           />
 
-          <Field
-            v-model="categoryText"
-            label="分类"
-            placeholder="例如：食品，乳制品"
-            maxlength="200"
-          />
+          <Field label="分类">
+            <template #input>
+              <CategoryMultiSelect
+                v-model="categoryNames"
+                :categories="store.categories"
+              />
+            </template>
+          </Field>
         </template>
 
         <Field
