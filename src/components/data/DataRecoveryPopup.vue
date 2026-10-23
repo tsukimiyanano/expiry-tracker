@@ -116,10 +116,12 @@ async function restore(source: RecoverySource) {
     showToast('数据恢复成功')
     emit('update:show', false)
   } catch (cause) {
-    error.value = ErrorUtils.getMessage(cause)
+    const message = ErrorUtils.getMessage(cause)
 
     // 失败后刷新状态，便于用户判断当前文件情况。
+    // refreshStatus() 会清空 error，因此刷新后再展示恢复失败原因。
     await refreshStatus()
+    error.value = message
   } finally {
     restoring.value = false
   }
