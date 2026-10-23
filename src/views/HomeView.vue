@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { Button, NavBar, Tag, showConfirmDialog } from 'vant'
 import { useRouter } from 'vue-router'
 
+import DataRecoveryPopup from '@/components/data/DataRecoveryPopup.vue'
 import GroupEditPopup from '@/components/items/GroupEditPopup.vue'
 import ItemFormPopup from '@/components/items/ItemFormPopup.vue'
 import { useAppDataStore } from '@/stores/app-data-store'
@@ -52,6 +53,8 @@ const operationError = ref<string | null>(null)
 
 const groupEditVisible = ref(false)
 const editingGroup = ref<ItemGroup | null>(null)
+
+const recoveryVisible = ref(false)
 
 const editingGroupItemCount = computed(() => {
   if (!editingGroup.value) return 0
@@ -208,6 +211,15 @@ const listGroups = computed(() => {
         <p>物品数据加载失败</p>
         <p>{{ errorMessage }}</p>
         <button type="button" @click="store.initialize()">重试</button>
+        <Button
+          class="recovery-entry"
+          plain
+          type="primary"
+          size="small"
+          @click="recoveryVisible = true"
+        >
+          检查备份与恢复
+        </Button>
       </div>
 
       <div v-else-if="!initialized" class="state-message">正在准备数据…</div>
@@ -332,6 +344,8 @@ const listGroups = computed(() => {
       :group="editingGroup"
       :item-count="editingGroupItemCount"
     />
+
+    <DataRecoveryPopup v-model:show="recoveryVisible" />
   </div>
 </template>
 
@@ -373,6 +387,11 @@ const listGroups = computed(() => {
 .error-message {
   overflow-wrap: anywhere;
   color: var(--van-danger-color, #ee0a24);
+}
+
+.recovery-entry {
+  display: block;
+  margin: 12px auto 0;
 }
 
 .empty-title {

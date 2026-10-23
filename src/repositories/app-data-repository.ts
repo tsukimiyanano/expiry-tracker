@@ -4,6 +4,7 @@ import {
   exists,
   mkdir,
   readTextFile,
+  remove,
   rename,
   writeTextFile,
 } from '@tauri-apps/plugin-fs'
@@ -11,13 +12,20 @@ import {
 import {
   APP_DATA_BACKUP_FILE_NAME,
   APP_DATA_FILE_NAME,
+  APP_DATA_RESTORE_TEMP_FILE_NAME,
   APP_DATA_TEMP_FILE_NAME,
   APP_DATA_VERSION,
 } from '@/constants/app-data'
 import { AsyncUtils } from '@/utils/async'
+import { ErrorUtils } from '@/utils/error'
 import { validateAppData } from '@/validators/app-data-validator'
 
 import type { AppData } from '@/types/app-data'
+import type {
+  AppDataRecoveryStatus,
+  RecoveryFileInfo,
+  RecoverySource,
+} from '@/types/data-recovery'
 
 const baseDir = BaseDirectory.AppData
 
@@ -166,6 +174,145 @@ async function loadData(): Promise<AppData> {
 }
 
 /**
+ * 检查单个数据文件的状态。
+ *
+ * invalid 表示内容不是合法 JSON 或不符合数据结构；
+ * unreadable 表示文件存在但读取失败，两者不能混淆。
+ */
+async function inspectRecoveryFile(
+  fileName: string,
+): Promise<RecoveryFileInfo> {
+  if (!(await fileExists(fileName))) {
+    return {
+      fileName,
+      state: 'missing',
+    }
+  }
+
+  let content: string
+
+  try {
+    content = await readTextFile(fileName, { baseDir })
+  } catch (cause) {
+    return {
+      fileName,
+      state: 'unreadable',
+      error: ErrorUtils.getMessage(cause),
+    }
+  }
+
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(content)
+  } catch (cause) {
+    return {
+      fileName,
+      state: 'invalid',
+      error: ErrorUtils.getMessage(cause),
+    }
+  }
+
+  try {
+    validateAppData(parsed)
+  } catch (cause) {
+    return {
+      fileName,
+      state: 'invalid',
+      error: ErrorUtils.getMessage(cause),
+    }
+  }
+
+  return {
+    fileName,
+    state: 'valid',
+    summary: {
+      groupCount: parsed.groups.length,
+      itemCount: parsed.items.length,
+      categoryCount: parsed.categories.length,
+    },
+  }
+}
+
+/**
+ * 检查正式文件、备份文件和临时文件的状态。
+ */
+async function inspectRecoveryData(): Promise<AppDataRecoveryStatus> {
+  await ensureDataDirectory()
+
+  const [main, backup, temp] = await Promise.all([
+    inspectRecoveryFile(APP_DATA_FILE_NAME),
+    inspectRecoveryFile(APP_DATA_BACKUP_FILE_NAME),
+    inspectRecoveryFile(APP_DATA_TEMP_FILE_NAME),
+  ])
+
+  return { main, backup, temp }
+}
+
+/**
+ * 使用指定候选文件恢复正式数据。
+ *
+ * 恢复前保留损坏现场，候选文件通过校验后才替换正式文件；
+ * 任何一步失败都不会删除候选文件，便于再次尝试。
+ */
+async function restoreData(source: RecoverySource): Promise<void> {
+  const status = await inspectRecoveryData()
+
+  if (status.main.state === 'valid') {
+    throw new Error('当前正式数据文件有效，无需执行数据恢复')
+  }
+
+  if (status.main.state === 'unreadable') {
+    throw new Error(
+      '正式数据文件无法读取，暂时不能安全恢复。请先检查文件访问权限',
+    )
+  }
+
+  const candidate = source === 'backup' ? status.backup : status.temp
+
+  if (candidate.state !== 'valid') {
+    throw new Error('所选恢复文件不存在或未通过数据校验，请重新检查恢复状态')
+  }
+
+  const sourceFileName =
+    source === 'backup' ? APP_DATA_BACKUP_FILE_NAME : APP_DATA_TEMP_FILE_NAME
+
+  await ensureDataDirectory()
+
+  // 先准备恢复暂存文件，不动现有正式文件。
+  await copyFile(sourceFileName, APP_DATA_RESTORE_TEMP_FILE_NAME, {
+    fromPathBaseDir: baseDir,
+    toPathBaseDir: baseDir,
+  })
+
+  // 复制后再次检查，防止将无效数据提交为正式数据。
+  await readValidatedFile(APP_DATA_RESTORE_TEMP_FILE_NAME)
+
+  const mainExists = await fileExists(APP_DATA_FILE_NAME)
+
+  if (mainExists) {
+    // 保留损坏现场；不覆盖之前留下的任何现场文件。
+    const quarantineFileName = `${APP_DATA_FILE_NAME}.corrupt-${Date.now()}`
+
+    await copyFile(APP_DATA_FILE_NAME, quarantineFileName, {
+      fromPathBaseDir: baseDir,
+      toPathBaseDir: baseDir,
+    })
+
+    // 主文件若存在，必须先删除；删除失败则不继续。
+    await remove(APP_DATA_FILE_NAME, { baseDir })
+  }
+
+  await rename(APP_DATA_RESTORE_TEMP_FILE_NAME, APP_DATA_FILE_NAME, {
+    oldPathBaseDir: baseDir,
+    newPathBaseDir: baseDir,
+  })
+
+  // 最后验证正式文件。备份和原候选文件均不删除。
+  await readValidatedFile(APP_DATA_FILE_NAME)
+}
+
+/**
  * 应用数据持久化 Repository
  */
 export const appDataRepository = {
@@ -187,5 +334,19 @@ export const appDataRepository = {
     const content = JSON.stringify(data, null, 2)
 
     return operationQueue.enqueue(() => writeData(content))
+  },
+
+  /**
+   * 检查正式文件与恢复候选文件的状态
+   */
+  getRecoveryStatus(): Promise<AppDataRecoveryStatus> {
+    return operationQueue.enqueue(inspectRecoveryData)
+  },
+
+  /**
+   * 使用指定候选文件恢复正式数据
+   */
+  restoreFromRecovery(source: RecoverySource): Promise<void> {
+    return operationQueue.enqueue(() => restoreData(source))
   },
 }

@@ -18,6 +18,13 @@ export const APP_DATA_TEMP_FILE_NAME = `${APP_DATA_FILE_NAME}.tmp`
 export const APP_DATA_BACKUP_FILE_NAME = `${APP_DATA_FILE_NAME}.bak`
 
 /**
+ * 恢复暂存文件名
+ *
+ * 恢复时先复制候选文件到该文件，校验通过后再替换正式文件。
+ */
+export const APP_DATA_RESTORE_TEMP_FILE_NAME = `${APP_DATA_FILE_NAME}.restore.tmp`
+
+/**
  * 当前应用数据结构版本
  */
 export const APP_DATA_VERSION = 1
