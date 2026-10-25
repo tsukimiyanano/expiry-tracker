@@ -127,6 +127,27 @@ function openEditGroup(group: ItemGroup) {
   groupEditVisible.value = true
 }
 
+function openExpiredItems(groupId: string | null = null) {
+  void router.push({
+    name: 'expired-items',
+    query: groupId ? { groupId } : {},
+  })
+}
+
+const expiredItems = computed(() =>
+  items.value
+    .map((item) => ({
+      ...item,
+      expiryStatus: DateUtils.getExpiryStatus(item.expireDate, item.isUsed),
+    }))
+    .filter((item) => item.expiryStatus.status === 'expired')
+    .sort((a, b) => a.expireDate.localeCompare(b.expireDate)),
+)
+
+const expiredGroupCount = computed(
+  () => new Set(expiredItems.value.map((item) => item.groupId)).size,
+)
+
 const listGroups = computed(() => {
   const categoryMap = new Map(
     categories.value.map((category) => [category.id, category]),
@@ -150,11 +171,17 @@ const listGroups = computed(() => {
           return a.expireDate.localeCompare(b.expireDate)
         })
 
-      const activeItems = groupItems.filter((item) => !item.isUsed)
+      // 过期物品统一收进提醒条与弹层，分组列表只展示仍可查看的物品。
+      const displayItems = groupItems.filter(
+        (item) => item.expiryStatus.status !== 'expired',
+      )
+      const expiredCount = groupItems.length - displayItems.length
+      const activeItems = displayItems.filter((item) => !item.isUsed)
 
       return {
         ...group,
-        items: groupItems,
+        items: displayItems,
+        expiredCount,
         categoryNames: group.categoryIds
           .map((id) => categoryMap.get(id)?.name)
           .filter((name): name is string => name !== undefined),
@@ -248,6 +275,31 @@ const listGroups = computed(() => {
       </div>
 
       <template v-else>
+        <button
+          v-if="expiredItems.length > 0"
+          type="button"
+          class="expired-banner"
+          @click="openExpiredItems()"
+        >
+          <span class="expired-banner__icon">
+            <Icon name="warning-o" size="16" />
+          </span>
+
+          <span class="expired-banner__content">
+            <span class="expired-banner__title">
+              {{ expiredItems.length }} 件物品已过期
+            </span>
+            <span class="expired-banner__desc">
+              来自 {{ expiredGroupCount }} 个分组
+            </span>
+          </span>
+
+          <span class="expired-banner__action">
+            去处理
+            <Icon name="arrow" size="12" />
+          </span>
+        </button>
+
         <div class="list-summary">
           共 {{ groups.length }} 个分组，{{ items.length }} 件物品
         </div>
@@ -337,6 +389,20 @@ const listGroups = computed(() => {
               </div>
             </div>
           </div>
+
+          <button
+            v-if="group.expiredCount > 0"
+            type="button"
+            class="group-expired-entry"
+            @click="openExpiredItems(group.id)"
+          >
+            <span>{{ group.expiredCount }} 件已过期</span>
+
+            <span class="group-expired-entry__action">
+              去处理
+              <Icon name="arrow" size="12" />
+            </span>
+          </button>
         </section>
       </template>
 
@@ -399,6 +465,65 @@ const listGroups = computed(() => {
 
 .create-entry {
   margin-bottom: 12px;
+}
+
+.expired-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #ffd7d9;
+  border-radius: 10px;
+  background: #fff5f5;
+  font: inherit;
+  text-align: left;
+}
+
+.expired-banner:active {
+  background: #ffecec;
+}
+
+.expired-banner__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffe1e3;
+  color: var(--van-danger-color, #ee0a24);
+}
+
+.expired-banner__content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.expired-banner__title {
+  color: var(--van-danger-color, #ee0a24);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.expired-banner__desc {
+  margin-top: 1px;
+  color: var(--van-text-color-2, #646566);
+  font-size: 12px;
+}
+
+.expired-banner__action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  color: var(--van-danger-color, #ee0a24);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .operation-error {
@@ -515,6 +640,32 @@ const listGroups = computed(() => {
 .item-row-used .item-name,
 .item-row-used .item-date {
   color: var(--van-text-color-3, #c8c9cc);
+}
+
+.group-expired-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--van-border-color, #ebedf0);
+  background: #fff8f8;
+  color: var(--van-danger-color, #ee0a24);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.group-expired-entry:active {
+  background: #fff0f0;
+}
+
+.group-expired-entry__action {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .item-side {

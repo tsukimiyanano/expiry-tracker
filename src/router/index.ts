@@ -15,6 +15,11 @@ const router = createRouter({
       component: () => import('@/views/CategoriesView.vue'),
     },
     {
+      path: '/expired-items',
+      name: 'expired-items',
+      component: () => import('@/views/ExpiredItemsView.vue'),
+    },
+    {
       path: '/data-management',
       name: 'data-management',
       component: () => import('@/views/DataManagementView.vue'),
