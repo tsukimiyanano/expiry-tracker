@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Button, NavBar, Tag, showConfirmDialog } from 'vant'
+import { Button, Icon, NavBar, Tag, showConfirmDialog } from 'vant'
 import { useRouter } from 'vue-router'
 
 import DataRecoveryPopup from '@/components/data/DataRecoveryPopup.vue'
@@ -62,6 +62,10 @@ const editingGroupItemCount = computed(() => {
   return items.value.filter((item) => item.groupId === editingGroup.value?.id)
     .length
 })
+
+function openDataManagement() {
+  void router.push({ name: 'data-management' })
+}
 
 function openCreateItem() {
   if (saving.value) return
@@ -175,11 +179,22 @@ const listGroups = computed(() => {
 
 <template>
   <div class="home-page">
-    <NavBar
-      title="物品过期管理"
-      right-text="分类管理"
-      @click-right="router.push({ name: 'categories' })"
-    />
+    <NavBar title="物品过期管理">
+      <template #right>
+        <div class="nav-actions">
+          <span class="nav-action" @click="router.push({ name: 'categories' })">
+            分类管理
+          </span>
+
+          <Icon
+            name="setting-o"
+            class="nav-action nav-action-icon"
+            size="22"
+            @click="openDataManagement"
+          />
+        </div>
+      </template>
+    </NavBar>
 
     <main class="home-content">
       <div v-if="saving" class="saving-tip">正在保存数据…</div>
@@ -357,6 +372,22 @@ const listGroups = computed(() => {
 
 .home-content {
   padding: 12px;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-action {
+  color: var(--van-primary-color, #1989fa);
+  font-size: 14px;
+}
+
+.nav-action-icon {
+  display: flex;
+  align-items: center;
 }
 
 .saving-tip {

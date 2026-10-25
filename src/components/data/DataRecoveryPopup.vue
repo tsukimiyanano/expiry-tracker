@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   Button,
   Cell,
   CellGroup,
   Loading,
+  Popup,
   showConfirmDialog,
   showToast,
 } from 'vant'
 
+import { useBackButtonHandler } from '@/composables/useBackButtonHandler'
 import { appDataRepository } from '@/repositories/app-data-repository'
 import { useAppDataStore } from '@/stores/app-data-store'
 import { ErrorUtils } from '@/utils/error'
@@ -28,6 +30,11 @@ const emit = defineEmits<{
 
 const store = useAppDataStore()
 
+const visible = computed({
+  get: () => props.show,
+  set: (value) => emit('update:show', value),
+})
+
 const status = ref<AppDataRecoveryStatus | null>(null)
 const loadingStatus = ref(false)
 const restoring = ref(false)
@@ -38,6 +45,12 @@ function close() {
 
   emit('update:show', false)
 }
+
+// Android 返回键优先关闭弹窗；恢复过程中不响应，避免中断写入。
+useBackButtonHandler(
+  () => props.show,
+  () => close(),
+)
 
 async function refreshStatus() {
   loadingStatus.value = true
@@ -129,95 +142,105 @@ async function restore(source: RecoverySource) {
 </script>
 
 <template>
-  <div v-if="show" class="recovery-panel">
-    <div class="recovery-panel__header">
-      <h3>数据备份与恢复</h3>
-      <Button
-        size="small"
-        plain
-        native-type="button"
-        :disabled="restoring"
-        @click="close"
-      >
-        关闭
-      </Button>
-    </div>
-
-    <div v-if="loadingStatus" class="recovery-panel__loading">
-      <Loading vertical>正在检查数据文件...</Loading>
-    </div>
-
-    <template v-else-if="status">
-      <CellGroup inset>
-        <Cell
-          title="正式数据"
-          :value="fileStateLabel(status.main)"
-          :label="fileSummary(status.main)"
-        />
-        <Cell
-          title="备份文件"
-          :value="fileStateLabel(status.backup)"
-          :label="fileSummary(status.backup)"
+  <Popup
+    v-model:show="visible"
+    position="bottom"
+    round
+    safe-area-inset-bottom
+    :style="{ maxHeight: '85vh' }"
+    :close-on-click-overlay="!restoring"
+  >
+    <div class="recovery-panel">
+      <div class="recovery-panel__header">
+        <h3>数据备份与恢复</h3>
+        <Button
+          size="small"
+          plain
+          native-type="button"
+          :disabled="restoring"
+          @click="close"
         >
-          <template #right-icon>
-            <Button
-              v-if="
-                status.main.state !== 'valid' && status.backup.state === 'valid'
-              "
-              size="small"
-              type="primary"
-              plain
-              :loading="restoring"
-              :disabled="restoring"
-              @click="restore('backup')"
-            >
-              恢复备份
-            </Button>
-          </template>
-        </Cell>
-        <Cell
-          title="临时文件"
-          :value="fileStateLabel(status.temp)"
-          :label="fileSummary(status.temp)"
-        >
-          <template #right-icon>
-            <Button
-              v-if="
-                status.main.state !== 'valid' && status.temp.state === 'valid'
-              "
-              size="small"
-              type="primary"
-              plain
-              :loading="restoring"
-              :disabled="restoring"
-              @click="restore('temp')"
-            >
-              恢复临时数据
-            </Button>
-          </template>
-        </Cell>
-      </CellGroup>
+          关闭
+        </Button>
+      </div>
 
-      <p class="recovery-panel__hint">
-        只有通过数据结构校验的候选文件才能恢复。恢复不会删除备份文件或原始候选文件。
+      <div v-if="loadingStatus" class="recovery-panel__loading">
+        <Loading vertical>正在检查数据文件...</Loading>
+      </div>
+
+      <template v-else-if="status">
+        <CellGroup inset>
+          <Cell
+            title="正式数据"
+            :value="fileStateLabel(status.main)"
+            :label="fileSummary(status.main)"
+          />
+          <Cell
+            title="备份文件"
+            :value="fileStateLabel(status.backup)"
+            :label="fileSummary(status.backup)"
+          >
+            <template #right-icon>
+              <Button
+                v-if="
+                  status.main.state !== 'valid' &&
+                  status.backup.state === 'valid'
+                "
+                size="small"
+                type="primary"
+                plain
+                :loading="restoring"
+                :disabled="restoring"
+                @click="restore('backup')"
+              >
+                恢复备份
+              </Button>
+            </template>
+          </Cell>
+          <Cell
+            title="临时文件"
+            :value="fileStateLabel(status.temp)"
+            :label="fileSummary(status.temp)"
+          >
+            <template #right-icon>
+              <Button
+                v-if="
+                  status.main.state !== 'valid' && status.temp.state === 'valid'
+                "
+                size="small"
+                type="primary"
+                plain
+                :loading="restoring"
+                :disabled="restoring"
+                @click="restore('temp')"
+              >
+                恢复临时数据
+              </Button>
+            </template>
+          </Cell>
+        </CellGroup>
+
+        <p class="recovery-panel__hint">
+          只有通过数据结构校验的候选文件才能恢复。恢复不会删除备份文件或原始候选文件。
+        </p>
+      </template>
+
+      <p v-if="error" class="recovery-panel__error">
+        {{ error }}
       </p>
-    </template>
 
-    <p v-if="error" class="recovery-panel__error">
-      {{ error }}
-    </p>
-
-    <div class="recovery-panel__footer">
-      <Button
-        block
-        plain
-        :disabled="loadingStatus || restoring"
-        @click="refreshStatus"
-      >
-        重新检查
-      </Button>
+      <div class="recovery-panel__footer">
+        <Button
+          block
+          plain
+          :disabled="loadingStatus || restoring"
+          @click="refreshStatus"
+        >
+          重新检查
+        </Button>
+      </div>
     </div>
-  </div>
+  </Popup>
 </template>
 
 <style scoped>

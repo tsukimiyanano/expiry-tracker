@@ -14,6 +14,11 @@ const router = createRouter({
       name: 'categories',
       component: () => import('@/views/CategoriesView.vue'),
     },
+    {
+      path: '/data-management',
+      name: 'data-management',
+      component: () => import('@/views/DataManagementView.vue'),
+    },
     ...(isDev()
       ? [
           {
