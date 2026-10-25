@@ -6,6 +6,7 @@ import { appDataTransferRepository } from '@/repositories/app-data-transfer-repo
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { AppData } from '@/types/app-data'
 import type { ImportDataSummary } from '@/types/data-transfer'
+import { DataTransferError } from '@/utils/data-transfer-error'
 
 function getDataSummary(data: AppData): ImportDataSummary {
   return {
@@ -79,7 +80,15 @@ export function useAppDataTransfer() {
         return false
       }
 
-      await store.importData(data)
+      try {
+        await store.importData(data)
+      } catch (error) {
+        throw new DataTransferError(
+          'persist-failed',
+          'Failed to persist imported data',
+          { cause: error },
+        )
+      }
 
       return true
     } finally {

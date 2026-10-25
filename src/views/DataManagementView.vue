@@ -6,14 +6,14 @@ import {
   CellGroup,
   Icon,
   NavBar,
-  showFailToast,
+  showDialog,
   showSuccessToast,
 } from 'vant'
 
 import DataRecoveryPopup from '@/components/data/DataRecoveryPopup.vue'
 import { useAppDataTransfer } from '@/composables/useAppDataTransfer'
 import { useAppDataStore } from '@/stores/app-data-store'
-import { ErrorUtils } from '@/utils/error'
+import { getDataTransferErrorInfo } from '@/utils/data-transfer-error'
 
 const router = useRouter()
 const store = useAppDataStore()
@@ -43,6 +43,16 @@ function goBack() {
   router.back()
 }
 
+async function showTransferError(error: unknown) {
+  const info = getDataTransferErrorInfo(error)
+
+  await showDialog({
+    title: info.title,
+    message: `${info.message}\n\n${info.suggestion}`,
+    confirmButtonText: '知道了',
+  })
+}
+
 async function handleExport() {
   if (!canOperate.value) return
 
@@ -53,7 +63,7 @@ async function handleExport() {
       showSuccessToast('数据导出成功')
     }
   } catch (error) {
-    showFailToast(`导出失败：${ErrorUtils.getMessage(error)}`)
+    await showTransferError(error)
   }
 }
 
@@ -67,7 +77,7 @@ async function handleImport() {
       showSuccessToast('数据导入成功')
     }
   } catch (error) {
-    showFailToast(`导入失败：${ErrorUtils.getMessage(error)}`)
+    await showTransferError(error)
   }
 }
 

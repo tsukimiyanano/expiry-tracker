@@ -6,6 +6,7 @@ import {
   CellGroup,
   Loading,
   Popup,
+  Tag,
   showConfirmDialog,
   showToast,
 } from 'vant'
@@ -13,12 +14,19 @@ import {
 import { useBackButtonHandler } from '@/composables/useBackButtonHandler'
 import { appDataRepository } from '@/repositories/app-data-repository'
 import { useAppDataStore } from '@/stores/app-data-store'
+import { DataRecoveryStatusUtils } from '@/utils/data-recovery-status'
 import { ErrorUtils } from '@/utils/error'
 import type {
   AppDataRecoveryStatus,
   RecoveryFileInfo,
   RecoverySource,
 } from '@/types/data-recovery'
+
+interface RecoveryFileEntry {
+  title: string
+  file: RecoveryFileInfo
+  source: RecoverySource | null
+}
 
 const props = defineProps<{
   show: boolean
@@ -38,6 +46,8 @@ const visible = computed({
 const status = ref<AppDataRecoveryStatus | null>(null)
 const loadingStatus = ref(false)
 const restoring = ref(false)
+const restoringSource = ref<RecoverySource | null>(null)
+const checkingError = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 function close() {
@@ -54,12 +64,16 @@ useBackButtonHandler(
 
 async function refreshStatus() {
   loadingStatus.value = true
+  checkingError.value = null
   error.value = null
+
+  // 清除旧结果，避免检查失败时继续展示过期状态。
+  status.value = null
 
   try {
     status.value = await appDataRepository.getRecoveryStatus()
   } catch (cause) {
-    error.value = ErrorUtils.getMessage(cause)
+    checkingError.value = ErrorUtils.getMessage(cause)
   } finally {
     loadingStatus.value = false
   }
@@ -73,32 +87,46 @@ watch(
   { immediate: true },
 )
 
-function fileStateLabel(file: RecoveryFileInfo): string {
-  switch (file.state) {
-    case 'missing':
-      return '不存在'
-    case 'valid':
-      return '有效'
-    case 'invalid':
-      return '数据损坏或格式无效'
-    case 'unreadable':
-      return '无法读取'
-  }
+function getFileStatus(file: RecoveryFileInfo) {
+  return DataRecoveryStatusUtils.getFilePresentation(file)
 }
 
-function fileSummary(file: RecoveryFileInfo): string {
-  if (!file.summary) return file.error ?? ''
+function getFileLabel(file: RecoveryFileInfo): string {
+  const details = [getFileStatus(file).description]
 
-  return `${file.summary.groupCount} 个分组 · ${file.summary.itemCount} 件物品 · ${file.summary.categoryCount} 个分类`
+  if (file.summary) {
+    details.push(
+      `${file.summary.groupCount} 个分组 · ${file.summary.itemCount} 件物品 · ${file.summary.categoryCount} 个分类`,
+    )
+  } else if (file.error) {
+    details.push(file.error)
+  }
+
+  return details.join('；')
+}
+
+const recoveryFiles = computed<RecoveryFileEntry[]>(() => {
+  if (!status.value) return []
+
+  return [
+    { title: '正式数据', file: status.value.main, source: null },
+    { title: '备份文件', file: status.value.backup, source: 'backup' },
+    { title: '临时文件', file: status.value.temp, source: 'temp' },
+  ]
+})
+
+const recoveryMessage = computed(() =>
+  status.value ? DataRecoveryStatusUtils.getRecoveryMessage(status.value) : '',
+)
+
+function canRestore(source: RecoverySource): boolean {
+  return status.value
+    ? DataRecoveryStatusUtils.canRestore(status.value, source)
+    : false
 }
 
 async function restore(source: RecoverySource) {
-  if (restoring.value || !status.value) return
-
-  const candidate =
-    source === 'backup' ? status.value.backup : status.value.temp
-
-  if (candidate.state !== 'valid') return
+  if (restoring.value || !canRestore(source)) return
 
   const sourceLabel =
     source === 'backup' ? '最近一次备份' : '保存中断时的临时数据'
@@ -118,6 +146,7 @@ async function restore(source: RecoverySource) {
   }
 
   restoring.value = true
+  restoringSource.value = source
   error.value = null
 
   try {
@@ -132,11 +161,12 @@ async function restore(source: RecoverySource) {
     const message = ErrorUtils.getMessage(cause)
 
     // 失败后刷新状态，便于用户判断当前文件情况。
-    // refreshStatus() 会清空 error，因此刷新后再展示恢复失败原因。
+    // refreshStatus() 会清空旧状态，因此刷新后再展示恢复失败原因。
     await refreshStatus()
     error.value = message
   } finally {
     restoring.value = false
+    restoringSource.value = null
   }
 }
 </script>
@@ -168,60 +198,54 @@ async function restore(source: RecoverySource) {
         <Loading vertical>正在检查数据文件...</Loading>
       </div>
 
+      <div v-else-if="checkingError" class="recovery-panel__check-error">
+        <p>备份检查失败，无法确定当前文件状态，请勿执行恢复操作。</p>
+        <p class="recovery-panel__error">{{ checkingError }}</p>
+      </div>
+
       <template v-else-if="status">
         <CellGroup inset>
           <Cell
-            title="正式数据"
-            :value="fileStateLabel(status.main)"
-            :label="fileSummary(status.main)"
-          />
-          <Cell
-            title="备份文件"
-            :value="fileStateLabel(status.backup)"
-            :label="fileSummary(status.backup)"
+            v-for="entry in recoveryFiles"
+            :key="entry.file.fileName"
+            :title="entry.title"
+            :label="getFileLabel(entry.file)"
           >
-            <template #right-icon>
-              <Button
-                v-if="
-                  status.main.state !== 'valid' &&
-                  status.backup.state === 'valid'
-                "
-                size="small"
-                type="primary"
-                plain
-                :loading="restoring"
-                :disabled="restoring"
-                @click="restore('backup')"
-              >
-                恢复备份
-              </Button>
-            </template>
-          </Cell>
-          <Cell
-            title="临时文件"
-            :value="fileStateLabel(status.temp)"
-            :label="fileSummary(status.temp)"
-          >
-            <template #right-icon>
-              <Button
-                v-if="
-                  status.main.state !== 'valid' && status.temp.state === 'valid'
-                "
-                size="small"
-                type="primary"
-                plain
-                :loading="restoring"
-                :disabled="restoring"
-                @click="restore('temp')"
-              >
-                恢复临时数据
-              </Button>
+            <template #value>
+              <Tag :type="getFileStatus(entry.file).color">
+                {{ getFileStatus(entry.file).label }}
+              </Tag>
             </template>
           </Cell>
         </CellGroup>
 
         <p class="recovery-panel__hint">
-          只有通过数据结构校验的候选文件才能恢复。恢复不会删除备份文件或原始候选文件。
+          {{ recoveryMessage }}
+        </p>
+
+        <div class="recovery-panel__actions">
+          <Button
+            type="primary"
+            class="recovery-action"
+            :loading="restoring && restoringSource === 'backup'"
+            :disabled="loadingStatus || restoring || !canRestore('backup')"
+            @click="restore('backup')"
+          >
+            从备份恢复
+          </Button>
+
+          <Button
+            class="recovery-action"
+            :loading="restoring && restoringSource === 'temp'"
+            :disabled="loadingStatus || restoring || !canRestore('temp')"
+            @click="restore('temp')"
+          >
+            从临时文件恢复
+          </Button>
+        </div>
+
+        <p class="recovery-panel__hint">
+          恢复不会删除备份文件或原始候选文件，恢复前会尽量保留现有主文件。
         </p>
       </template>
 
@@ -263,6 +287,31 @@ async function restore(source: RecoverySource) {
 
 .recovery-panel__loading {
   padding: 32px 0;
+}
+
+.recovery-panel__check-error {
+  margin: 8px 16px;
+  color: var(--van-text-color-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.recovery-panel__check-error p {
+  margin: 0;
+}
+
+.recovery-panel__check-error .recovery-panel__error {
+  margin: 8px 0 0;
+}
+
+.recovery-panel__actions {
+  display: flex;
+  gap: 12px;
+  margin: 0 16px;
+}
+
+.recovery-action {
+  flex: 1;
 }
 
 .recovery-panel__hint,

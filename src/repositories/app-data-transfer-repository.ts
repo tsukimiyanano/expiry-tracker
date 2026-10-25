@@ -2,6 +2,7 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
 import type { AppData } from '@/types/app-data'
+import { DataTransferError } from '@/utils/data-transfer-error'
 import { validateAppData } from '@/validators/app-data-validator'
 
 const JSON_FILE_FILTER = [
@@ -41,14 +42,25 @@ export const appDataTransferRepository = {
   async exportData(data: AppData): Promise<boolean> {
     validateAppData(data)
 
+    // 不捕获文件选择器本身的异常：只有返回 null 才表示用户取消。
     const path = await save({
       defaultPath: createExportFileName(),
       filters: JSON_FILE_FILTER,
     })
 
-    if (!path) return false
+    if (path === null) return false
 
-    await writeTextFile(path, JSON.stringify(data, null, 2))
+    try {
+      await writeTextFile(path, JSON.stringify(data, null, 2))
+    } catch (error) {
+      throw new DataTransferError(
+        'write-failed',
+        'Failed to write exported data',
+        {
+          cause: error,
+        },
+      )
+    }
 
     return true
   },
@@ -66,13 +78,35 @@ export const appDataTransferRepository = {
       filters: JSON_FILE_FILTER,
     })
 
-    // multiple 为 false 时只会返回单个路径，这里仍做防御性判断。
-    if (!selected || Array.isArray(selected)) return null
+    if (selected === null) return null
 
-    const content = await readTextFile(selected)
-    const parsed: unknown = JSON.parse(content)
+    let content: string
 
-    validateAppData(parsed)
+    try {
+      content = await readTextFile(selected)
+    } catch (error) {
+      throw new DataTransferError('read-failed', 'Failed to read import file', {
+        cause: error,
+      })
+    }
+
+    let parsed: unknown
+
+    try {
+      parsed = JSON.parse(content)
+    } catch (error) {
+      throw new DataTransferError('invalid-json', 'Invalid JSON format', {
+        cause: error,
+      })
+    }
+
+    try {
+      validateAppData(parsed)
+    } catch (error) {
+      throw new DataTransferError('invalid-data', 'Invalid application data', {
+        cause: error,
+      })
+    }
 
     return parsed
   },

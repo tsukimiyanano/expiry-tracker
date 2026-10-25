@@ -182,55 +182,55 @@ async function loadData(): Promise<AppData> {
 async function inspectRecoveryFile(
   fileName: string,
 ): Promise<RecoveryFileInfo> {
-  if (!(await fileExists(fileName))) {
-    return {
-      fileName,
-      state: 'missing',
-    }
-  }
-
-  let content: string
-
   try {
-    content = await readTextFile(fileName, { baseDir })
+    // fileExists() 本身可能因存储访问异常而失败，
+    // 不能把它误判为文件不存在。
+    if (!(await fileExists(fileName))) {
+      return {
+        fileName,
+        state: 'missing',
+      }
+    }
+
+    let content: string
+
+    try {
+      content = await readTextFile(fileName, { baseDir })
+    } catch (cause) {
+      return {
+        fileName,
+        state: 'unreadable',
+        error: ErrorUtils.getMessage(cause),
+      }
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(content)
+
+      validateAppData(parsed)
+
+      return {
+        fileName,
+        state: 'valid',
+        summary: {
+          groupCount: parsed.groups.length,
+          itemCount: parsed.items.length,
+          categoryCount: parsed.categories.length,
+        },
+      }
+    } catch (cause) {
+      return {
+        fileName,
+        state: 'invalid',
+        error: ErrorUtils.getMessage(cause),
+      }
+    }
   } catch (cause) {
     return {
       fileName,
       state: 'unreadable',
       error: ErrorUtils.getMessage(cause),
     }
-  }
-
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(content)
-  } catch (cause) {
-    return {
-      fileName,
-      state: 'invalid',
-      error: ErrorUtils.getMessage(cause),
-    }
-  }
-
-  try {
-    validateAppData(parsed)
-  } catch (cause) {
-    return {
-      fileName,
-      state: 'invalid',
-      error: ErrorUtils.getMessage(cause),
-    }
-  }
-
-  return {
-    fileName,
-    state: 'valid',
-    summary: {
-      groupCount: parsed.groups.length,
-      itemCount: parsed.items.length,
-      categoryCount: parsed.categories.length,
-    },
   }
 }
 
