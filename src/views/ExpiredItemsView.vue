@@ -270,13 +270,13 @@ async function confirmDelete(item: ExpiredItem) {
 <style scoped>
 .expired-page {
   min-height: 100%;
-  padding: 12px 12px 32px;
-  background: var(--van-background, #f7f8fa);
+  padding: var(--et-space-gutter) var(--et-space-gutter) 32px;
+  background: var(--et-color-bg-page);
 }
 
 .state-message {
   padding: 48px 16px;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   text-align: center;
   font-size: 14px;
   overflow-wrap: anywhere;
@@ -296,14 +296,14 @@ async function confirmDelete(item: ExpiredItem) {
 
 .empty-title {
   margin: 12px 0 0;
-  color: var(--van-text-color, #323233);
+  color: var(--et-color-text);
   font-size: 18px;
   font-weight: 600;
 }
 
 .empty-desc {
   margin: 4px 0 0;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 13px;
 }
 
@@ -313,14 +313,14 @@ async function confirmDelete(item: ExpiredItem) {
 
 .list-summary {
   margin: 0 4px 12px;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 13px;
 }
 
 .expired-list {
   overflow: hidden;
   border-radius: 8px;
-  background: var(--van-background-2, #fff);
+  background: var(--et-color-bg-surface);
 }
 
 .expired-item {
@@ -328,7 +328,7 @@ async function confirmDelete(item: ExpiredItem) {
 }
 
 .expired-item + .expired-item {
-  border-top: 1px solid var(--van-border-color, #ebedf0);
+  border-top: 1px solid var(--et-color-border);
 }
 
 .expired-item__head {
@@ -354,14 +354,14 @@ async function confirmDelete(item: ExpiredItem) {
 
 .expired-item__meta {
   margin: 5px 0 0;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
 
 .expired-item__note {
   margin: 5px 0 0;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 12px;
   overflow-wrap: anywhere;
 }

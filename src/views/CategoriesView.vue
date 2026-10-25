@@ -362,12 +362,12 @@ async function confirmDelete(category: Category, groupCount: number) {
 <style scoped>
 .categories-view {
   min-height: 100%;
-  padding: 12px 0 32px;
+  padding: var(--et-space-gutter) 0 32px;
 }
 
 .categories-view__summary {
   margin: 4px 16px 12px;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 13px;
 }
 

@@ -238,11 +238,11 @@ function openExpiredItems(groupId: string | null = null) {
 <style scoped>
 .home-page {
   min-height: 100%;
-  background: var(--van-background, #f7f8fa);
+  background: var(--et-color-bg-page);
 }
 
 .home-content {
-  padding: 12px 12px 96px;
+  padding: var(--et-space-gutter) var(--et-space-gutter) 96px;
 }
 
 .nav-title {
@@ -254,13 +254,13 @@ function openExpiredItems(groupId: string | null = null) {
 }
 
 .nav-title__main {
-  color: var(--van-text-color, #323233);
+  color: var(--et-color-text);
   font-size: 15px;
   font-weight: 600;
 }
 
 .nav-title__sub {
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 10px;
 }
 
@@ -282,7 +282,7 @@ function openExpiredItems(groupId: string | null = null) {
 
 .saving-tip {
   margin-bottom: 8px;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 12px;
   text-align: right;
 }
@@ -296,7 +296,7 @@ function openExpiredItems(groupId: string | null = null) {
 
 .state-message {
   padding: 48px 16px;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   text-align: center;
   font-size: 14px;
 }
@@ -312,7 +312,7 @@ function openExpiredItems(groupId: string | null = null) {
 }
 
 .empty-title {
-  color: var(--van-text-color, #323233);
+  color: var(--et-color-text);
   font-size: 18px;
   font-weight: 600;
 }

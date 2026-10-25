@@ -1,0 +1,24 @@
+/* 全局设计令牌：组件统一通过 var(--et-*) 引用，底层优先指向 Vant 变量。 */
+:root {
+  /* 中性文本 */
+  --et-color-text: var(--van-text-color, #323233);
+  --et-color-text-2: var(--van-text-color-2, #969799);
+  --et-color-text-3: var(--van-text-color-3, #c8c9cc);
+  --et-color-text-used: #9aa0a6;
+  --et-color-text-used-meta: #b7babf;
+
+  /* 背景、填充与描边 */
+  --et-color-bg-page: var(--van-background, #f7f8fa);
+  --et-color-bg-surface: var(--van-background-2, #fff);
+  --et-color-fill: var(--van-gray-2, #f2f3f5);
+  --et-color-border: var(--van-border-color, #ebedf0);
+
+  /* 倒计时状态色 */
+  --et-color-countdown-danger: #d81e06;
+  --et-color-countdown-warning: #d46b08;
+
+  /* 尺寸与阴影 */
+  --et-space-gutter: 12px;
+  --et-size-tap: 44px;
+  --et-shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04);
+}

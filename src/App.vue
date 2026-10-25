@@ -34,8 +34,8 @@ body {
     -apple-system,
     'Segoe UI',
     sans-serif;
-  background-color: #fff;
-  color: #323233;
+  background-color: var(--et-color-bg-surface);
+  color: var(--et-color-text);
 }
 
 .app-container {

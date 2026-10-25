@@ -67,7 +67,7 @@ const emit = defineEmits<{
   align-items: baseline;
   gap: 3px;
   overflow: hidden;
-  color: var(--van-text-color-2, #646566);
+  color: var(--et-color-text-2);
   font-size: 12px;
   white-space: nowrap;
 }

@@ -170,8 +170,8 @@ function removeCategory(name: string) {
 }
 
 .category-select__empty {
-  padding: 12px 0;
-  color: var(--van-text-color-3);
+  padding: var(--et-space-gutter) 0;
+  color: var(--et-color-text-3);
   font-size: 13px;
 }
 

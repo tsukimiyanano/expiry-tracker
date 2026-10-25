@@ -114,14 +114,14 @@ const emit = defineEmits<{
   margin-bottom: 10px;
   overflow: hidden;
   border-radius: 14px;
-  background: var(--van-background-2, #fff);
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+  background: var(--et-color-bg-surface);
+  box-shadow: var(--et-shadow-card);
 }
 
 .group-header {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--et-size-tap);
   padding-right: 4px;
 }
 
@@ -145,7 +145,7 @@ const emit = defineEmits<{
 
 .group-caret {
   flex-shrink: 0;
-  color: #969799;
+  color: var(--et-color-text-2);
 }
 
 .group-title {
@@ -178,8 +178,8 @@ const emit = defineEmits<{
   padding: 0 7px;
   overflow: hidden;
   border-radius: 999px;
-  background: #f2f3f5;
-  color: var(--van-text-color-2, #646566);
+  background: var(--et-color-fill);
+  color: var(--et-color-text-2);
   font-size: 11px;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -188,7 +188,7 @@ const emit = defineEmits<{
 
 .group-count {
   flex-shrink: 0;
-  color: var(--van-text-color-3, #c8c9cc);
+  color: var(--et-color-text-3);
   font-size: 11px;
 }
 
@@ -221,11 +221,11 @@ const emit = defineEmits<{
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #969799;
+  color: var(--et-color-text-2);
 }
 
 .group-more:active {
-  background: #f2f3f5;
+  background: var(--et-color-fill);
 }
 
 .group-expired-entry {
@@ -236,7 +236,7 @@ const emit = defineEmits<{
   width: 100%;
   padding: 8px 14px;
   border: 0;
-  border-top: 1px solid var(--van-border-color, #ebedf0);
+  border-top: 1px solid var(--et-color-border);
   background: #fff8f8;
   color: var(--van-danger-color, #ee0a24);
   font: inherit;

@@ -35,7 +35,7 @@
 | `validators/`   | 数据格式与关联关系校验，只判断不修改                                                                                                                                                     |
 | `services/`     | 依赖业务模型、但不依赖 Vue 的可复用业务规则（如 `category-service.ts` 的分类名称解析与复用）                                                                                             |
 | `repositories/` | 数据访问与持久化，唯一允许执行文件 IO 的位置                                                                                                                                             |
-| `assets/`       | 静态资源                                                                                                                                                                                 |
+| `assets/`       | 静态资源；`styles/tokens.css` 存放全局设计令牌（CSS 自定义属性）                                                                                                                         |
 
 `src-tauri/` 为 Tauri / Rust / 原生层：
 
@@ -58,7 +58,7 @@
 - 忽略 Promise 返回值时使用 `void` 前缀显式标记（如 `void router.push(...)`）。
 - Vant 组件从 `'vant'` 命名导入（如 `import { Button, NavBar } from 'vant'`）；样式在 `main.ts` 全量引入 `vant/lib/index.css`。**不使用**自动按需导入插件。
 - 异步原生调用的错误处理模式：`try/catch` + `error instanceof Error ? error.message : String(error)`（参考 `NativePlugin.vue` 的 `errorMessage()`）。
-- 页面样式用 `<style scoped>`，全局样式只放 `App.vue`。
+- 页面样式用 `<style scoped>`。全局样式分两类：设计令牌（CSS 自定义属性）统一放在 `src/assets/styles/tokens.css`，由 `main.ts` 在 Vant 样式之后引入；其余全局样式（重置、`body`、安全区等）只放 `App.vue`。令牌统一使用 `--et-` 前缀，底层优先引用 Vant 变量。
 
 **建议**（现有代码尚无用例，新增时采用）：
 

@@ -211,7 +211,7 @@ function openRecovery() {
 <style scoped>
 .data-management-view {
   min-height: 100%;
-  background: var(--van-background);
+  background: var(--et-color-bg-page);
 }
 
 .management-content {
@@ -224,7 +224,7 @@ function openRecovery() {
 
 .section-title {
   margin: 0 16px 12px;
-  color: var(--van-text-color-2);
+  color: var(--et-color-text-2);
   font-size: 14px;
   font-weight: 500;
 }
@@ -247,20 +247,20 @@ function openRecovery() {
 }
 
 .overview-item strong {
-  color: var(--van-text-color);
+  color: var(--et-color-text);
   font-size: 26px;
   font-weight: 600;
   line-height: 1;
 }
 
 .overview-item span {
-  color: var(--van-text-color-2);
+  color: var(--et-color-text-2);
   font-size: 12px;
 }
 
 .section-description {
   margin: 12px 16px 0;
-  color: var(--van-text-color-3);
+  color: var(--et-color-text-3);
   font-size: 12px;
   line-height: 1.6;
 }
