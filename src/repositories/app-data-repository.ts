@@ -3,6 +3,7 @@ import {
   copyFile,
   exists,
   mkdir,
+  readDir,
   readTextFile,
   remove,
   rename,
@@ -12,11 +13,14 @@ import {
 import {
   APP_DATA_BACKUP_FILE_NAME,
   APP_DATA_FILE_NAME,
+  APP_DATA_IMPORT_SNAPSHOT_PREFIX,
+  APP_DATA_IMPORT_SNAPSHOT_TEMP_FILE_NAME,
   APP_DATA_RESTORE_TEMP_FILE_NAME,
   APP_DATA_TEMP_FILE_NAME,
   APP_DATA_VERSION,
 } from '@/constants/app-data'
 import { AsyncUtils } from '@/utils/async'
+import { DataTransferError } from '@/utils/data-transfer-error'
 import { ErrorUtils } from '@/utils/error'
 import { validateAppData } from '@/validators/app-data-validator'
 
@@ -60,6 +64,47 @@ async function fileExists(name: string): Promise<boolean> {
   return exists(name, { baseDir })
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+/**
+ * 生成带本地时间戳的导入前快照文件名。
+ */
+function createImportSnapshotFileName(): string {
+  const now = new Date()
+  const date = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}`
+  const time = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`
+
+  return `${APP_DATA_IMPORT_SNAPSHOT_PREFIX}${date}-${time}`
+}
+
+function isImportSnapshotFileName(name: string): boolean {
+  if (!name.startsWith(APP_DATA_IMPORT_SNAPSHOT_PREFIX)) return false
+
+  return /^\d{8}-\d{6}$/.test(
+    name.slice(APP_DATA_IMPORT_SNAPSHOT_PREFIX.length),
+  )
+}
+
+/**
+ * 列出所有导入前快照文件名，按文件名倒序（新的在前）。
+ */
+async function listImportSnapshotFileNames(): Promise<string[]> {
+  const entries = await readDir('.', { baseDir })
+
+  return entries
+    .filter((entry) => entry.isFile && isImportSnapshotFileName(entry.name))
+    .map((entry) => entry.name)
+    .sort((a, b) => b.localeCompare(a))
+}
+
+async function findLatestImportSnapshotFileName(): Promise<string | null> {
+  const fileNames = await listImportSnapshotFileNames()
+
+  return fileNames[0] ?? null
+}
+
 /**
  * 读取并校验数据文件。
  */
@@ -85,6 +130,50 @@ async function writeValidatedTempFile(content: string): Promise<void> {
 }
 
 /**
+ * 写入导入前快照，并清理旧的快照文件。
+ *
+ * 新快照完整写入并回读校验后才重命名为时间戳文件；
+ * 任一步失败都不会影响已有的快照文件。
+ */
+async function writeImportSnapshot(content: string): Promise<void> {
+  const fileName = createImportSnapshotFileName()
+
+  try {
+    await ensureDataDirectory()
+
+    await writeTextFile(APP_DATA_IMPORT_SNAPSHOT_TEMP_FILE_NAME, content, {
+      baseDir,
+    })
+
+    await readValidatedFile(APP_DATA_IMPORT_SNAPSHOT_TEMP_FILE_NAME)
+
+    await rename(APP_DATA_IMPORT_SNAPSHOT_TEMP_FILE_NAME, fileName, {
+      oldPathBaseDir: baseDir,
+      newPathBaseDir: baseDir,
+    })
+  } catch (cause) {
+    throw new DataTransferError(
+      'snapshot-failed',
+      'Failed to create import snapshot',
+      { cause },
+    )
+  }
+
+  // 单份保留：删除其它快照。清理失败不影响本次导入。
+  try {
+    const fileNames = await listImportSnapshotFileNames()
+
+    await Promise.all(
+      fileNames
+        .filter((name) => name !== fileName)
+        .map((name) => remove(name, { baseDir }).catch(() => undefined)),
+    )
+  } catch {
+    // 忽略清理异常，下次导入时会再次尝试。
+  }
+}
+
+/**
  * 提交一份已序列化的数据。
  *
  * 正式文件在新数据完整准备好之前始终保持不动：
@@ -103,12 +192,14 @@ async function writeData(content: string): Promise<void> {
       throw new Error('正式数据文件无效，已停止保存，以避免覆盖原始数据')
     }
   } else {
-    // 正式文件缺失但存在备份，可能是异常写入后的中间状态，
+    // 正式文件缺失但存在历史文件，可能是异常写入后的中间状态，
     // 不能当作首次安装直接覆盖。
     const hasBackupFile = await fileExists(APP_DATA_BACKUP_FILE_NAME)
+    const hasImportSnapshot =
+      (await findLatestImportSnapshotFileName()) !== null
 
-    if (hasBackupFile) {
-      throw new Error('正式数据文件缺失，但检测到备份，已停止保存')
+    if (hasBackupFile || hasImportSnapshot) {
+      throw new Error('正式数据文件缺失，但检测到备份或导入前快照，已停止保存')
     }
   }
 
@@ -159,10 +250,11 @@ async function loadData(): Promise<AppData> {
 
   const hasBackupFile = await fileExists(APP_DATA_BACKUP_FILE_NAME)
   const hasTempFile = await fileExists(APP_DATA_TEMP_FILE_NAME)
+  const hasImportSnapshot = (await findLatestImportSnapshotFileName()) !== null
 
-  // 备份和临时文件都可能代表一次尚未处理完毕的异常写入，
+  // 备份、临时文件和导入前快照都可能代表历史数据，
   // 不能按首次启动初始化。
-  if (hasBackupFile || hasTempFile) {
+  if (hasBackupFile || hasTempFile || hasImportSnapshot) {
     throw new Error('正式数据文件缺失，但检测到历史数据文件，已停止初始化')
   }
 
@@ -235,18 +327,48 @@ async function inspectRecoveryFile(
 }
 
 /**
- * 检查正式文件、备份文件和临时文件的状态。
+ * 检查最近一次导入前快照的状态。
+ *
+ * 快照文件名带时间戳，需要按目录中的最新文件定位；
+ * 目录读取失败时单独标记为无法读取，不影响其它文件的状态。
+ */
+async function inspectImportSnapshotFile(): Promise<RecoveryFileInfo> {
+  const displayName = `${APP_DATA_IMPORT_SNAPSHOT_PREFIX}*`
+
+  try {
+    const fileName = await findLatestImportSnapshotFileName()
+
+    if (!fileName) {
+      return {
+        fileName: displayName,
+        state: 'missing',
+      }
+    }
+
+    return await inspectRecoveryFile(fileName)
+  } catch (cause) {
+    return {
+      fileName: displayName,
+      state: 'unreadable',
+      error: ErrorUtils.getMessage(cause),
+    }
+  }
+}
+
+/**
+ * 检查正式文件、备份文件、临时文件和导入前快照的状态。
  */
 async function inspectRecoveryData(): Promise<AppDataRecoveryStatus> {
   await ensureDataDirectory()
 
-  const [main, backup, temp] = await Promise.all([
+  const [main, backup, temp, importSnapshot] = await Promise.all([
     inspectRecoveryFile(APP_DATA_FILE_NAME),
     inspectRecoveryFile(APP_DATA_BACKUP_FILE_NAME),
     inspectRecoveryFile(APP_DATA_TEMP_FILE_NAME),
+    inspectImportSnapshotFile(),
   ])
 
-  return { main, backup, temp }
+  return { main, backup, temp, importSnapshot }
 }
 
 /**
@@ -258,24 +380,35 @@ async function inspectRecoveryData(): Promise<AppDataRecoveryStatus> {
 async function restoreData(source: RecoverySource): Promise<void> {
   const status = await inspectRecoveryData()
 
-  if (status.main.state === 'valid') {
-    throw new Error('当前正式数据文件有效，无需执行数据恢复')
-  }
-
   if (status.main.state === 'unreadable') {
     throw new Error(
       '正式数据文件无法读取，暂时不能安全恢复。请先检查文件访问权限',
     )
   }
 
-  const candidate = source === 'backup' ? status.backup : status.temp
+  // 备份和临时文件不允许覆盖有效的正式文件；
+  // 导入前快照是例外，用于撤销最近一次导入。
+  if (source !== 'import-snapshot' && status.main.state === 'valid') {
+    throw new Error('当前正式数据文件有效，只能使用导入前快照撤销导入')
+  }
+
+  const candidate =
+    source === 'backup'
+      ? status.backup
+      : source === 'temp'
+        ? status.temp
+        : status.importSnapshot
 
   if (candidate.state !== 'valid') {
     throw new Error('所选恢复文件不存在或未通过数据校验，请重新检查恢复状态')
   }
 
   const sourceFileName =
-    source === 'backup' ? APP_DATA_BACKUP_FILE_NAME : APP_DATA_TEMP_FILE_NAME
+    source === 'backup'
+      ? APP_DATA_BACKUP_FILE_NAME
+      : source === 'temp'
+        ? APP_DATA_TEMP_FILE_NAME
+        : candidate.fileName
 
   await ensureDataDirectory()
 
@@ -334,6 +467,19 @@ export const appDataRepository = {
     const content = JSON.stringify(data, null, 2)
 
     return operationQueue.enqueue(() => writeData(content))
+  },
+
+  /**
+   * 保存导入前快照
+   *
+   * 在导入写入新数据之前调用，快照不参与日常保存的滚动备份。
+   */
+  saveImportSnapshot(data: AppData): Promise<void> {
+    validateAppData(data)
+
+    const content = JSON.stringify(data, null, 2)
+
+    return operationQueue.enqueue(() => writeImportSnapshot(content))
   },
 
   /**

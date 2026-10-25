@@ -91,8 +91,16 @@ function getFileStatus(file: RecoveryFileInfo) {
   return DataRecoveryStatusUtils.getFilePresentation(file)
 }
 
-function getFileLabel(file: RecoveryFileInfo): string {
-  const details = [getFileStatus(file).description]
+function getFileLabel(entry: RecoveryFileEntry): string {
+  const file = entry.file
+  const details: string[] = []
+
+  // 快照文件名包含创建时间，展示后便于用户判断要撤销哪一次导入。
+  if (entry.source === 'import-snapshot' && file.state !== 'missing') {
+    details.push(file.fileName)
+  }
+
+  details.push(getFileStatus(file).description)
 
   if (file.summary) {
     details.push(
@@ -112,6 +120,11 @@ const recoveryFiles = computed<RecoveryFileEntry[]>(() => {
     { title: '正式数据', file: status.value.main, source: null },
     { title: '备份文件', file: status.value.backup, source: 'backup' },
     { title: '临时文件', file: status.value.temp, source: 'temp' },
+    {
+      title: '导入前快照',
+      file: status.value.importSnapshot,
+      source: 'import-snapshot',
+    },
   ]
 })
 
@@ -129,14 +142,23 @@ async function restore(source: RecoverySource) {
   if (restoring.value || !canRestore(source)) return
 
   const sourceLabel =
-    source === 'backup' ? '最近一次备份' : '保存中断时的临时数据'
+    source === 'backup'
+      ? '最近一次备份'
+      : source === 'temp'
+        ? '保存中断时的临时数据'
+        : '最近一次导入前的快照'
+
+  // 撤销导入会覆盖当前有效数据，需要额外说明后果。
+  const extraHint =
+    source === 'import-snapshot' ? '当前已导入的数据将被撤销。' : ''
 
   try {
     await showConfirmDialog({
       title: '确认恢复数据',
       message:
         `将使用${sourceLabel}替换当前正式数据。` +
-        '恢复前会尽量保留现有主文件作为损坏现场。' +
+        extraHint +
+        '恢复前会尽量保留现有主文件作为现场副本。' +
         '请确认该候选文件中的数据是你希望恢复的版本。',
       confirmButtonText: '确认恢复',
       confirmButtonColor: 'var(--van-danger-color)',
@@ -152,8 +174,8 @@ async function restore(source: RecoverySource) {
   try {
     await appDataRepository.restoreFromRecovery(source)
 
-    // 主文件恢复完成后，重新读取并更新 Store。
-    await store.initialize()
+    // 主文件恢复完成后，强制从磁盘重新读取并更新 Store。
+    await store.reload()
 
     showToast('数据恢复成功')
     emit('update:show', false)
@@ -209,7 +231,7 @@ async function restore(source: RecoverySource) {
             v-for="entry in recoveryFiles"
             :key="entry.file.fileName"
             :title="entry.title"
-            :label="getFileLabel(entry.file)"
+            :label="getFileLabel(entry)"
           >
             <template #value>
               <Tag :type="getFileStatus(entry.file).color">
@@ -226,6 +248,19 @@ async function restore(source: RecoverySource) {
         <div class="recovery-panel__actions">
           <Button
             type="primary"
+            class="recovery-action"
+            :loading="restoring && restoringSource === 'import-snapshot'"
+            :disabled="
+              loadingStatus || restoring || !canRestore('import-snapshot')
+            "
+            @click="restore('import-snapshot')"
+          >
+            撤销导入（导入前快照）
+          </Button>
+        </div>
+
+        <div class="recovery-panel__actions recovery-panel__actions--secondary">
+          <Button
             class="recovery-action"
             :loading="restoring && restoringSource === 'backup'"
             :disabled="loadingStatus || restoring || !canRestore('backup')"
@@ -245,7 +280,7 @@ async function restore(source: RecoverySource) {
         </div>
 
         <p class="recovery-panel__hint">
-          恢复不会删除备份文件或原始候选文件，恢复前会尽量保留现有主文件。
+          恢复不会删除备份文件、导入前快照或原始候选文件，恢复前会尽量保留现有主文件。
         </p>
       </template>
 
@@ -308,6 +343,10 @@ async function restore(source: RecoverySource) {
   display: flex;
   gap: 12px;
   margin: 0 16px;
+}
+
+.recovery-panel__actions--secondary {
+  margin-top: 8px;
 }
 
 .recovery-action {

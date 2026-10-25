@@ -66,7 +66,9 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
   let pendingMutationCount = 0
 
   function updateData<T>(
-    operation: (current: AppData) => DataUpdateResult<T>,
+    operation: (
+      current: AppData,
+    ) => DataUpdateResult<T> | Promise<DataUpdateResult<T>>,
   ): Promise<T> {
     pendingMutationCount += 1
     saving.value = true
@@ -83,7 +85,7 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
           throw new Error('应用数据尚未初始化')
         }
 
-        const { nextData, result } = operation(current)
+        const { nextData, result } = await operation(current)
 
         await appDataRepository.save(nextData)
 
@@ -172,16 +174,22 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
   /**
    * 使用导入数据整体替换现有数据
    *
-   * 克隆一份副本，避免导入结果与调用方持有的对象共享引用；
+   * 写入新数据前先保存当前数据快照，供用户在导入后撤销；
+   * 克隆一份副本，避免导入结果与调用方持有的对象共享引用。
    * 保存成功前不会修改当前响应式数据。
    */
   function replaceAllData(importedData: AppData): Promise<void> {
     validateAppData(importedData)
 
-    return updateData(() => ({
-      nextData: structuredClone(importedData),
-      result: undefined,
-    }))
+    return updateData(async (current) => {
+      // 快照失败会中止导入，正式数据保持不变。
+      await appDataRepository.saveImportSnapshot(current)
+
+      return {
+        nextData: structuredClone(importedData),
+        result: undefined,
+      }
+    })
   }
 
   return {

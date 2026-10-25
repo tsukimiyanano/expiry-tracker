@@ -3,6 +3,7 @@ export type DataTransferErrorCode =
   | 'invalid-data'
   | 'read-failed'
   | 'write-failed'
+  | 'snapshot-failed'
   | 'persist-failed'
 
 /**
@@ -53,6 +54,11 @@ const ERROR_INFO: Record<DataTransferErrorCode, DataTransferErrorInfo> = {
     title: '数据导入未完成',
     message: '导入文件已通过校验，但应用内部保存数据时发生错误。',
     suggestion: '请先检查当前数据状态，必要时使用备份检查与恢复功能。',
+  },
+  'snapshot-failed': {
+    title: '无法创建导入前备份',
+    message: '导入尚未开始，当前数据保持不变。',
+    suggestion: '请检查设备剩余空间与存储权限后重试。',
   },
 }
 

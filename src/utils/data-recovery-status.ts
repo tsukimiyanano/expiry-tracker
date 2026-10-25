@@ -14,19 +14,28 @@ export interface RecoveryStatusPresentation {
  * 候选文件是否允许恢复
  *
  * 与 Repository 的恢复限制保持一致：
- * 主文件有效或无法读取时禁止恢复，避免误覆盖现场。
+ * 主文件无法读取时一律禁止恢复，避免误覆盖现场；
+ * 备份和临时文件不允许覆盖有效的正式文件；
+ * 导入前快照是例外，用于撤销最近一次导入。
  */
 function canRestore(
   status: AppDataRecoveryStatus,
   source: RecoverySource,
 ): boolean {
-  const candidate = source === 'backup' ? status.backup : status.temp
+  if (status.main.state === 'unreadable') return false
 
-  return (
-    candidate.state === 'valid' &&
-    status.main.state !== 'valid' &&
-    status.main.state !== 'unreadable'
-  )
+  const candidate =
+    source === 'backup'
+      ? status.backup
+      : source === 'temp'
+        ? status.temp
+        : status.importSnapshot
+
+  if (candidate.state !== 'valid') return false
+
+  if (source === 'import-snapshot') return true
+
+  return status.main.state !== 'valid'
 }
 
 /**
@@ -69,28 +78,33 @@ export const DataRecoveryStatusUtils = {
 
   getRecoveryMessage(status: AppDataRecoveryStatus): string {
     if (status.main.state === 'valid') {
-      return '主数据文件正常，无需执行数据恢复。'
+      return canRestore(status, 'import-snapshot')
+        ? '主数据文件正常。如需撤销最近一次导入，可从导入前快照恢复。'
+        : '主数据文件正常，无需执行数据恢复。'
     }
 
     if (status.main.state === 'unreadable') {
       return '主数据文件无法读取。为避免误覆盖数据，当前禁止恢复操作。'
     }
 
-    const hasBackup = canRestore(status, 'backup')
-    const hasTemp = canRestore(status, 'temp')
+    const availableSources: string[] = []
 
-    if (hasBackup && hasTemp) {
-      return '主数据文件异常，检测到两个有效的恢复候选文件。请确认数据内容后选择恢复来源。'
+    if (canRestore(status, 'backup')) availableSources.push('备份文件')
+    if (canRestore(status, 'temp')) availableSources.push('临时文件')
+    if (canRestore(status, 'import-snapshot'))
+      availableSources.push('导入前快照')
+
+    if (availableSources.length === 0) {
+      return '当前没有可用的恢复文件，请勿反复尝试覆盖数据。'
     }
 
-    if (hasBackup) {
-      return '主数据文件异常，检测到有效备份，可以尝试恢复。'
+    if (availableSources.length === 1) {
+      return `主数据文件异常，检测到有效的${availableSources[0]}，可以尝试恢复。`
     }
 
-    if (hasTemp) {
-      return '主数据文件异常，检测到有效临时文件，可以尝试恢复。'
-    }
-
-    return '当前没有可用的恢复文件，请勿反复尝试覆盖数据。'
+    return (
+      '主数据文件异常，检测到多个有效的恢复候选' +
+      `（${availableSources.join('、')}）。请确认数据内容后选择恢复来源。`
+    )
   },
 }

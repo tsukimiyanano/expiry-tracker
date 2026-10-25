@@ -77,6 +77,20 @@ export const useAppDataStore = defineStore('app-data', () => {
     await mutations.replaceAllData(importedData)
   }
 
+  /**
+   * 强制从磁盘重新读取数据
+   *
+   * 恢复流程替换正式文件后，内存中的旧状态必须丢弃；
+   * initialize() 在已初始化时不会重新读取，因此需要单独提供该方法。
+   */
+  async function reload(): Promise<void> {
+    initialized.value = false
+    data.value = null
+    initializationPromise = null
+
+    await initialize()
+  }
+
   return {
     data,
     groups,
@@ -88,6 +102,7 @@ export const useAppDataStore = defineStore('app-data', () => {
     error,
     initialize,
     importData,
+    reload,
     ...mutations,
   }
 })

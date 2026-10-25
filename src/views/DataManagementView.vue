@@ -176,7 +176,7 @@ function openRecovery() {
         </CellGroup>
 
         <p class="section-description">
-          导入前将校验文件格式，并要求确认。导入不会与现有数据合并。
+          导入前将校验文件格式并要求确认，同时自动创建当前数据的快照。导入不会与现有数据合并。
         </p>
       </section>
 
@@ -186,7 +186,7 @@ function openRecovery() {
         <CellGroup inset>
           <Cell
             title="检查备份与恢复"
-            label="检查主数据、备份和临时文件"
+            label="检查主数据、备份、临时文件与导入前快照"
             is-link
             :clickable="!busy"
             :class="{ 'cell-disabled': busy }"
@@ -199,7 +199,7 @@ function openRecovery() {
         </CellGroup>
 
         <p class="section-description">
-          备份恢复用于处理数据文件损坏等异常情况。主数据正常时不会提供恢复操作，建议定期将数据导出到设备之外保存。
+          备份恢复用于处理数据文件损坏等异常情况。主数据正常时仍可通过导入前快照撤销最近一次导入，建议定期将数据导出到设备之外保存。
         </p>
       </section>
     </main>

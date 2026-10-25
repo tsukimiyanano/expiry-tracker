@@ -70,7 +70,8 @@ export function useAppDataTransfer() {
             `${summary.groupCount} 个物品组\n` +
             `${summary.itemCount} 件物品\n` +
             `${summary.categoryCount} 个分类\n\n` +
-            '导入将替换应用内的全部现有数据，确定继续吗？',
+            '导入将替换应用内的全部现有数据，确定继续吗？\n\n' +
+            '导入前会自动创建当前数据的快照，可在「检查备份与恢复」中回退。',
           confirmButtonText: '确认导入',
           confirmButtonColor: 'var(--van-danger-color)',
           cancelButtonText: '取消',
@@ -83,6 +84,10 @@ export function useAppDataTransfer() {
       try {
         await store.importData(data)
       } catch (error) {
+        // 快照等导入流程自身的分类错误直接透传，
+        // 其余才视为内部持久化失败。
+        if (error instanceof DataTransferError) throw error
+
         throw new DataTransferError(
           'persist-failed',
           'Failed to persist imported data',
