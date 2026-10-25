@@ -367,7 +367,7 @@ async function confirmDelete(category: Category, groupCount: number) {
 
 .categories-view__summary {
   margin: 4px 16px 12px;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 13px;
 }
 
@@ -377,7 +377,7 @@ async function confirmDelete(category: Category, groupCount: number) {
 
 .categories-view__message {
   margin: 16px;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
   font-size: 14px;
   overflow-wrap: anywhere;
 }
@@ -406,7 +406,7 @@ async function confirmDelete(category: Category, groupCount: number) {
 
 .category-editor__error {
   margin: 12px 16px;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
   font-size: 13px;
 }
 

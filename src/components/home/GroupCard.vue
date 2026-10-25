@@ -163,7 +163,7 @@ const emit = defineEmits<{
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--van-danger-color, #ee0a24);
+  background: var(--van-danger-color);
 }
 
 .group-categories {
@@ -179,7 +179,7 @@ const emit = defineEmits<{
   overflow: hidden;
   border-radius: 999px;
   background: var(--et-color-fill);
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 11px;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -188,11 +188,12 @@ const emit = defineEmits<{
 
 .group-count {
   flex-shrink: 0;
-  color: var(--et-color-text-3);
+  color: var(--et-color-text-hint);
   font-size: 11px;
 }
 
 .group-add {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -203,7 +204,17 @@ const emit = defineEmits<{
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--van-primary-color, #1989fa);
+  color: var(--van-primary-color);
+}
+
+.group-add::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: var(--et-size-tap);
+  transform: translateY(-50%);
+  content: '';
 }
 
 .group-add:active {
@@ -211,6 +222,7 @@ const emit = defineEmits<{
 }
 
 .group-more {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,6 +234,16 @@ const emit = defineEmits<{
   border-radius: 10px;
   background: transparent;
   color: var(--et-color-text-2);
+}
+
+.group-more::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: var(--et-size-tap);
+  transform: translateY(-50%);
+  content: '';
 }
 
 .group-more:active {
@@ -238,7 +260,7 @@ const emit = defineEmits<{
   border: 0;
   border-top: 1px solid var(--et-color-border);
   background: #fff8f8;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
   font: inherit;
   font-size: 12px;
   font-weight: 500;

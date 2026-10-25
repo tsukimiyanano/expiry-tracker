@@ -171,7 +171,7 @@ function removeCategory(name: string) {
 
 .category-select__empty {
   padding: var(--et-space-gutter) 0;
-  color: var(--et-color-text-3);
+  color: var(--et-color-text-hint);
   font-size: 13px;
 }
 

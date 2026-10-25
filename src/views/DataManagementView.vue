@@ -224,7 +224,7 @@ function openRecovery() {
 
 .section-title {
   margin: 0 16px 12px;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 14px;
   font-weight: 500;
 }
@@ -254,13 +254,13 @@ function openRecovery() {
 }
 
 .overview-item span {
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 12px;
 }
 
 .section-description {
   margin: 12px 16px 0;
-  color: var(--et-color-text-3);
+  color: var(--et-color-text-hint);
   font-size: 12px;
   line-height: 1.6;
 }

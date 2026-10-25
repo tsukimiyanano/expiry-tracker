@@ -1,21 +1,23 @@
-/* 全局设计令牌：组件统一通过 var(--et-*) 引用，底层优先指向 Vant 变量。 */
+/* 全局设计令牌：组件统一通过 var(--et-*) 引用。
+   Vant 样式由 main.ts 保证先于本文件引入，故令牌内不重复书写 fallback。 */
 :root {
   /* 中性文本 */
-  --et-color-text: var(--van-text-color, #323233);
-  --et-color-text-2: var(--van-text-color-2, #969799);
-  --et-color-text-3: var(--van-text-color-3, #c8c9cc);
+  --et-color-text: var(--van-text-color);
+  --et-color-text-2: var(--van-text-color-2);
+  --et-color-text-3: var(--van-text-color-3);
+  --et-color-text-hint: var(--van-gray-7);
   --et-color-text-used: #9aa0a6;
   --et-color-text-used-meta: #b7babf;
 
   /* 背景、填充与描边 */
-  --et-color-bg-page: var(--van-background, #f7f8fa);
-  --et-color-bg-surface: var(--van-background-2, #fff);
-  --et-color-fill: var(--van-gray-2, #f2f3f5);
-  --et-color-border: var(--van-border-color, #ebedf0);
+  --et-color-bg-page: var(--van-background);
+  --et-color-bg-surface: var(--van-background-2);
+  --et-color-fill: var(--van-gray-2);
+  --et-color-border: var(--van-border-color);
 
   /* 倒计时状态色 */
   --et-color-countdown-danger: #d81e06;
-  --et-color-countdown-warning: #d46b08;
+  --et-color-countdown-warning: #b45309;
 
   /* 尺寸与阴影 */
   --et-space-gutter: 12px;

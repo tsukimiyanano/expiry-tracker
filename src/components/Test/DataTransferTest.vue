@@ -74,7 +74,7 @@ async function handleImport() {
 
 .transfer-test__hint {
   margin: 12px 4px 0;
-  color: var(--van-text-color-2, #646566);
+  color: var(--van-text-color-2);
   font-size: 12px;
 }
 </style>

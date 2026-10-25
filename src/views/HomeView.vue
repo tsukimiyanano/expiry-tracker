@@ -260,7 +260,7 @@ function openExpiredItems(groupId: string | null = null) {
 }
 
 .nav-title__sub {
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 10px;
 }
 
@@ -271,7 +271,7 @@ function openExpiredItems(groupId: string | null = null) {
 }
 
 .nav-action {
-  color: var(--van-primary-color, #1989fa);
+  color: var(--van-primary-color);
   font-size: 14px;
 }
 
@@ -282,28 +282,28 @@ function openExpiredItems(groupId: string | null = null) {
 
 .saving-tip {
   margin-bottom: 8px;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 12px;
   text-align: right;
 }
 
 .operation-error {
   margin: 0 0 12px;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
   font-size: 13px;
   overflow-wrap: anywhere;
 }
 
 .state-message {
   padding: 48px 16px;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   text-align: center;
   font-size: 14px;
 }
 
 .error-message {
   overflow-wrap: anywhere;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
 }
 
 .recovery-entry {
@@ -329,7 +329,7 @@ function openExpiredItems(groupId: string | null = null) {
   height: 52px;
   border: 0;
   border-radius: 50%;
-  background: var(--van-primary-color, #1989fa);
+  background: var(--van-primary-color);
   color: #fff;
   box-shadow: 0 6px 18px rgba(25, 137, 250, 0.36);
   transition:

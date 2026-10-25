@@ -326,7 +326,7 @@ async function restore(source: RecoverySource) {
 
 .recovery-panel__check-error {
   margin: 8px 16px;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -361,7 +361,7 @@ async function restore(source: RecoverySource) {
 }
 
 .recovery-panel__hint {
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
 }
 
 .recovery-panel__error {

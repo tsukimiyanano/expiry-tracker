@@ -121,8 +121,8 @@ const emit = defineEmits<{
 }
 
 .item-check__circle--done {
-  border-color: var(--van-success-color, #07c160);
-  background: var(--van-success-color, #07c160);
+  border-color: var(--van-success-color);
+  background: var(--van-success-color);
 }
 
 .item-main {
@@ -165,7 +165,7 @@ const emit = defineEmits<{
   min-width: 0;
   gap: 4px;
   overflow: hidden;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 12px;
   line-height: 16px;
   white-space: nowrap;
@@ -190,7 +190,7 @@ const emit = defineEmits<{
 }
 
 .item-countdown--normal {
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-weight: 400;
 }
 
@@ -211,6 +211,7 @@ const emit = defineEmits<{
 }
 
 .item-more {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,6 +223,16 @@ const emit = defineEmits<{
   border-radius: 10px;
   background: transparent;
   color: var(--et-color-text-2);
+}
+
+.item-more::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--et-size-tap);
+  height: var(--et-size-tap);
+  transform: translate(-50%, -50%);
+  content: '';
 }
 
 .item-more:active {

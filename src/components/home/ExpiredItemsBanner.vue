@@ -57,7 +57,7 @@ const emit = defineEmits<{
   height: 24px;
   border-radius: 50%;
   background: #ffe1e3;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
 }
 
 .expired-banner__text {
@@ -67,13 +67,13 @@ const emit = defineEmits<{
   align-items: baseline;
   gap: 3px;
   overflow: hidden;
-  color: var(--et-color-text-2);
+  color: var(--et-color-text-hint);
   font-size: 12px;
   white-space: nowrap;
 }
 
 .expired-banner__text strong {
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
   font-size: 13px;
   font-weight: 600;
 }
@@ -83,7 +83,7 @@ const emit = defineEmits<{
   flex-shrink: 0;
   align-items: center;
   gap: 2px;
-  color: var(--van-danger-color, #ee0a24);
+  color: var(--van-danger-color);
   font-size: 12px;
   font-weight: 500;
 }
