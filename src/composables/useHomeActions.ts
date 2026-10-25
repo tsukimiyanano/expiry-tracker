@@ -10,15 +10,43 @@ import { ErrorUtils } from '@/utils/error'
 
 export type ItemFormMode = 'create' | 'add' | 'edit'
 
-export const ITEM_MENU_ACTIONS: ActionSheetAction[] = [
-  { name: '编辑物品', icon: 'edit' },
-  { name: '删除物品', icon: 'delete-o', color: '#ee0a24' },
+export type ItemMenuActionKey = 'edit-item' | 'delete-item'
+export type GroupMenuActionKey = 'add-item' | 'manage-group'
+
+/**
+ * 菜单操作定义
+ *
+ * key 为操作标识，name 为 ActionSheet 展示文案；
+ * 直接把该结构传给 Vant，无需再做字段转换。
+ */
+export type HomeMenuAction<K extends string> = Omit<
+  ActionSheetAction,
+  'name'
+> & {
+  key: K
+  name: string
+}
+
+export const ITEM_MENU_ACTIONS: HomeMenuAction<ItemMenuActionKey>[] = [
+  { key: 'edit-item', name: '编辑物品', icon: 'edit' },
+  {
+    key: 'delete-item',
+    name: '删除物品',
+    icon: 'delete-o',
+    color: '#ee0a24',
+  },
 ]
 
-export const GROUP_MENU_ACTIONS: ActionSheetAction[] = [
-  { name: '添加同组物品', icon: 'plus' },
-  { name: '管理分组', icon: 'edit' },
+export const GROUP_MENU_ACTIONS: HomeMenuAction<GroupMenuActionKey>[] = [
+  { key: 'add-item', name: '添加同组物品', icon: 'plus' },
+  { key: 'manage-group', name: '管理分组', icon: 'edit' },
 ]
+
+function getMenuActionKey<K extends string>(
+  action: ActionSheetAction,
+): K | undefined {
+  return (action as HomeMenuAction<K>).key
+}
 
 /**
  * 首页物品与分组的交互动作
@@ -114,9 +142,11 @@ export function useHomeActions() {
     const item = menuItem.value
     if (!item) return
 
-    if (action.name === '编辑物品') {
+    const actionKey = getMenuActionKey<ItemMenuActionKey>(action)
+
+    if (actionKey === 'edit-item') {
       openEditItem(item)
-    } else if (action.name === '删除物品') {
+    } else if (actionKey === 'delete-item') {
       void confirmDeleteItem(item)
     }
   }
@@ -132,9 +162,11 @@ export function useHomeActions() {
     const group = menuGroup.value
     if (!group) return
 
-    if (action.name === '添加同组物品') {
+    const actionKey = getMenuActionKey<GroupMenuActionKey>(action)
+
+    if (actionKey === 'add-item') {
       openAddItem(group)
-    } else if (action.name === '管理分组') {
+    } else if (actionKey === 'manage-group') {
       openEditGroup(group)
     }
   }
