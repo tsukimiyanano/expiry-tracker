@@ -2,6 +2,7 @@
 import { NavBar } from 'vant'
 import { useRouter } from 'vue-router'
 import AppDataTest from '@/components/Test/AppDataTest.vue'
+import DataTransferTest from '@/components/Test/DataTransferTest.vue'
 import NativePlugin from '@/components/Test/NativePlugin.vue'
 
 const router = useRouter()
@@ -17,6 +18,8 @@ const router = useRouter()
     />
 
     <AppDataTest />
+
+    <DataTransferTest />
 
     <NativePlugin />
   </div>

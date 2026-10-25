@@ -64,6 +64,19 @@ export const useAppDataStore = defineStore('app-data', () => {
     saving,
   })
 
+  /**
+   * 使用导入数据整体替换应用数据
+   *
+   * 复用变更队列与安全写入流程；保存失败时不更新 Store 数据。
+   */
+  async function importData(importedData: AppData): Promise<void> {
+    if (!initialized.value) {
+      throw new Error('应用数据尚未初始化，无法导入')
+    }
+
+    await mutations.replaceAllData(importedData)
+  }
+
   return {
     data,
     groups,
@@ -74,6 +87,7 @@ export const useAppDataStore = defineStore('app-data', () => {
     saving,
     error,
     initialize,
+    importData,
     ...mutations,
   }
 })

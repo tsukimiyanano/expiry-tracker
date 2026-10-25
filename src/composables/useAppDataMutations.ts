@@ -7,6 +7,7 @@ import { AsyncUtils } from '@/utils/async'
 import { ErrorUtils } from '@/utils/error'
 import { DateUtils } from '@/utils/date'
 import { StringUtils } from '@/utils/string'
+import { validateAppData } from '@/validators/app-data-validator'
 import type { AppData } from '@/types/app-data'
 import type { Item } from '@/types/item'
 import type { ItemGroup } from '@/types/item-group'
@@ -168,9 +169,25 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
 
   const editing = useAppDataEditing(updateData)
 
+  /**
+   * 使用导入数据整体替换现有数据
+   *
+   * 克隆一份副本，避免导入结果与调用方持有的对象共享引用；
+   * 保存成功前不会修改当前响应式数据。
+   */
+  function replaceAllData(importedData: AppData): Promise<void> {
+    validateAppData(importedData)
+
+    return updateData(() => ({
+      nextData: structuredClone(importedData),
+      result: undefined,
+    }))
+  }
+
   return {
     createItem,
     addItemToGroup,
+    replaceAllData,
     ...editing,
   }
 }
