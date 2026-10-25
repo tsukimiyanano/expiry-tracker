@@ -1,30 +1,43 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Button, Icon, NavBar, Tag, showConfirmDialog } from 'vant'
+import {
+  ActionSheet,
+  Button,
+  Icon,
+  Loading,
+  NavBar,
+  showConfirmDialog,
+} from 'vant'
+import type { ActionSheetAction } from 'vant'
 import { useRouter } from 'vue-router'
 
 import DataRecoveryPopup from '@/components/data/DataRecoveryPopup.vue'
 import GroupEditPopup from '@/components/items/GroupEditPopup.vue'
 import ItemFormPopup from '@/components/items/ItemFormPopup.vue'
+import { useBackButtonHandler } from '@/composables/useBackButtonHandler'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { Item } from '@/types/item'
 import type { ItemGroup } from '@/types/item-group'
+import type { ExpiryStatusInfo } from '@/utils/date'
 import { DateUtils } from '@/utils/date'
-import type { ExpiryStatus } from '@/utils/date'
 import { ErrorUtils } from '@/utils/error'
 import { isDev } from '@/utils/env'
 
-const EXPIRY_TAG_TYPES: Record<
-  ExpiryStatus,
-  'success' | 'danger' | 'warning' | 'primary'
-> = {
-  used: 'success',
-  expired: 'danger',
-  today: 'danger',
-  soon: 'warning',
-  normal: 'primary',
+interface CountdownInfo {
+  text: string
+  tone: 'danger' | 'warning'
 }
+
+const ITEM_MENU_ACTIONS: ActionSheetAction[] = [
+  { name: '编辑物品', icon: 'edit' },
+  { name: '删除物品', icon: 'delete-o', color: '#ee0a24' },
+]
+
+const GROUP_MENU_ACTIONS: ActionSheetAction[] = [
+  { name: '添加同组物品', icon: 'plus' },
+  { name: '管理分组', icon: 'edit' },
+]
 
 const router = useRouter()
 const store = useAppDataStore()
@@ -49,6 +62,7 @@ const selectedGroup = ref<ItemGroup | null>(null)
 const selectedItem = ref<Item | null>(null)
 
 const deletingItemId = ref<string | null>(null)
+const markingItemId = ref<string | null>(null)
 const operationError = ref<string | null>(null)
 
 const groupEditVisible = ref(false)
@@ -56,12 +70,86 @@ const editingGroup = ref<ItemGroup | null>(null)
 
 const recoveryVisible = ref(false)
 
+const collapsedGroupIds = ref<Set<string>>(new Set())
+
+const itemMenuVisible = ref(false)
+const menuItem = ref<Item | null>(null)
+const menuGroupName = ref('')
+
+const groupMenuVisible = ref(false)
+const menuGroup = ref<ItemGroup | null>(null)
+
 const editingGroupItemCount = computed(() => {
   if (!editingGroup.value) return 0
 
   return items.value.filter((item) => item.groupId === editingGroup.value?.id)
     .length
 })
+
+const itemMenuTitle = computed(() =>
+  menuItem.value ? menuItem.value.productName || menuGroupName.value : '',
+)
+
+const groupMenuTitle = computed(() => menuGroup.value?.name ?? '')
+
+// 菜单弹层与表单弹层一样优先消费 Android 返回键。
+useBackButtonHandler(
+  () => itemMenuVisible.value,
+  () => {
+    itemMenuVisible.value = false
+  },
+)
+
+useBackButtonHandler(
+  () => groupMenuVisible.value,
+  () => {
+    groupMenuVisible.value = false
+  },
+)
+
+function isGroupCollapsed(groupId: string): boolean {
+  return collapsedGroupIds.value.has(groupId)
+}
+
+function toggleGroup(groupId: string) {
+  const next = new Set(collapsedGroupIds.value)
+
+  if (next.has(groupId)) {
+    next.delete(groupId)
+  } else {
+    next.add(groupId)
+  }
+
+  collapsedGroupIds.value = next
+}
+
+function getCountdownInfo(
+  isUsed: boolean,
+  status: ExpiryStatusInfo,
+): CountdownInfo | null {
+  // 已用完和较远的日期不追加提示，避免信息冗余。
+  if (isUsed || status.daysRemaining === null) return null
+
+  const days = status.daysRemaining
+
+  if (days < 0) {
+    return { text: `已过期 ${Math.abs(days)} 天`, tone: 'danger' }
+  }
+
+  if (days === 0) {
+    return { text: '今天到期', tone: 'danger' }
+  }
+
+  if (days === 1) {
+    return { text: '明天到期', tone: 'warning' }
+  }
+
+  if (days <= 7) {
+    return { text: `还剩 ${days} 天`, tone: 'warning' }
+  }
+
+  return null
+}
 
 function openDataManagement() {
   void router.push({ name: 'data-management' })
@@ -94,6 +182,43 @@ function openEditItem(item: Item) {
   itemFormVisible.value = true
 }
 
+function openItemMenu(item: Item, groupName: string) {
+  if (saving.value) return
+
+  menuItem.value = item
+  menuGroupName.value = groupName
+  itemMenuVisible.value = true
+}
+
+function onItemMenuSelect(action: ActionSheetAction) {
+  const item = menuItem.value
+  if (!item) return
+
+  if (action.name === '编辑物品') {
+    openEditItem(item)
+  } else if (action.name === '删除物品') {
+    void confirmDeleteItem(item)
+  }
+}
+
+function openGroupMenu(group: ItemGroup) {
+  if (saving.value) return
+
+  menuGroup.value = group
+  groupMenuVisible.value = true
+}
+
+function onGroupMenuSelect(action: ActionSheetAction) {
+  const group = menuGroup.value
+  if (!group) return
+
+  if (action.name === '添加同组物品') {
+    openAddItem(group)
+  } else if (action.name === '管理分组') {
+    openEditGroup(group)
+  }
+}
+
 async function confirmDeleteItem(item: Item) {
   if (saving.value || deletingItemId.value) return
 
@@ -117,6 +242,21 @@ async function confirmDeleteItem(item: Item) {
     operationError.value = ErrorUtils.getMessage(error)
   } finally {
     deletingItemId.value = null
+  }
+}
+
+async function toggleItemUsed(item: Item) {
+  if (saving.value || markingItemId.value) return
+
+  markingItemId.value = item.id
+  operationError.value = null
+
+  try {
+    await store.updateItem(item.id, { isUsed: !item.isUsed })
+  } catch (error) {
+    operationError.value = ErrorUtils.getMessage(error)
+  } finally {
+    markingItemId.value = null
   }
 }
 
@@ -157,11 +297,19 @@ const listGroups = computed(() => {
     .map((group) => {
       const groupItems = items.value
         .filter((item) => item.groupId === group.id)
-        .map((item) => ({
-          ...item,
-          // 统一在数据层计算状态，模板只负责展示。
-          expiryStatus: DateUtils.getExpiryStatus(item.expireDate, item.isUsed),
-        }))
+        .map((item) => {
+          const expiryStatus = DateUtils.getExpiryStatus(
+            item.expireDate,
+            item.isUsed,
+          )
+
+          return {
+            ...item,
+            // 统一在数据层计算状态，模板只负责展示。
+            expiryStatus,
+            countdown: getCountdownInfo(item.isUsed, expiryStatus),
+          }
+        })
         .sort((a, b) => {
           // 未用完的物品排在前面，再按日期升序排列。
           if (a.isUsed !== b.isUsed) {
@@ -206,7 +354,16 @@ const listGroups = computed(() => {
 
 <template>
   <div class="home-page">
-    <NavBar title="物品过期管理">
+    <NavBar>
+      <template #title>
+        <span class="nav-title">
+          <span class="nav-title__main">物品过期管理</span>
+          <span class="nav-title__sub">
+            {{ groups.length }} 个分组 · {{ items.length }} 件物品
+          </span>
+        </span>
+      </template>
+
       <template #right>
         <div class="nav-actions">
           <span class="nav-action" @click="router.push({ name: 'categories' })">
@@ -225,18 +382,6 @@ const listGroups = computed(() => {
 
     <main class="home-content">
       <div v-if="saving" class="saving-tip">正在保存数据…</div>
-
-      <div v-if="initialized" class="create-entry">
-        <Button
-          block
-          type="primary"
-          icon="plus"
-          :disabled="loading || saving"
-          @click="openCreateItem"
-        >
-          新建物品
-        </Button>
-      </div>
 
       <p v-if="operationError" class="operation-error">
         {{ operationError }}
@@ -271,7 +416,7 @@ const listGroups = computed(() => {
         class="state-message empty-state"
       >
         <p class="empty-title">还没有物品</p>
-        <p>添加物品后，就可以在这里查看过期日期。</p>
+        <p>点击右下角按钮，添加第一件物品。</p>
       </div>
 
       <template v-else>
@@ -282,16 +427,12 @@ const listGroups = computed(() => {
           @click="openExpiredItems()"
         >
           <span class="expired-banner__icon">
-            <Icon name="warning-o" size="16" />
+            <Icon name="warning-o" size="14" />
           </span>
 
-          <span class="expired-banner__content">
-            <span class="expired-banner__title">
-              {{ expiredItems.length }} 件物品已过期
-            </span>
-            <span class="expired-banner__desc">
-              来自 {{ expiredGroupCount }} 个分组
-            </span>
+          <span class="expired-banner__text">
+            <strong>{{ expiredItems.length }} 件已过期</strong>
+            <span>· {{ expiredGroupCount }} 个分组</span>
           </span>
 
           <span class="expired-banner__action">
@@ -300,109 +441,150 @@ const listGroups = computed(() => {
           </span>
         </button>
 
-        <div class="list-summary">
-          共 {{ groups.length }} 个分组，{{ items.length }} 件物品
-        </div>
-
-        <section v-for="group in listGroups" :key="group.id" class="group-card">
+        <section
+          v-for="group in listGroups"
+          :key="group.id"
+          class="group-card"
+          :class="{ 'group-card--collapsed': isGroupCollapsed(group.id) }"
+        >
           <header class="group-header">
-            <div class="group-title">{{ group.name }}</div>
-            <div class="group-count">{{ group.activeCount }} 件未用完</div>
-          </header>
-
-          <div v-if="group.categoryNames.length > 0" class="category-list">
-            <Tag
-              v-for="name in group.categoryNames"
-              :key="name"
-              type="primary"
-              plain
+            <button
+              type="button"
+              class="group-toggle"
+              :aria-expanded="!isGroupCollapsed(group.id)"
+              @click="toggleGroup(group.id)"
             >
-              {{ name }}
-            </Tag>
-          </div>
+              <Icon
+                :name="isGroupCollapsed(group.id) ? 'arrow' : 'arrow-down'"
+                size="12"
+                class="group-caret"
+              />
 
-          <div class="group-actions">
-            <Button
-              size="small"
-              plain
-              type="primary"
+              <span class="group-title">{{ group.name }}</span>
+
+              <span
+                v-if="isGroupCollapsed(group.id) && group.expiredCount > 0"
+                class="group-expired-dot"
+                aria-hidden="true"
+              />
+
+              <span class="group-count">{{ group.items.length }} 件</span>
+            </button>
+
+            <button
+              type="button"
+              class="group-add"
+              aria-label="添加同组物品"
               :disabled="saving"
               @click="openAddItem(group)"
             >
-              添加同组物品
-            </Button>
+              <Icon name="plus" size="16" />
+            </button>
 
-            <Button
-              size="small"
-              plain
-              icon="edit"
+            <button
+              type="button"
+              class="group-more"
+              aria-label="分组操作"
               :disabled="saving"
-              @click="openEditGroup(group)"
+              @click="openGroupMenu(group)"
             >
-              管理分组
-            </Button>
-          </div>
+              <Icon name="ellipsis" size="18" />
+            </button>
+          </header>
 
-          <div
-            v-for="item in group.items"
-            :key="item.id"
-            class="item-row"
-            :class="{ 'item-row-used': item.isUsed }"
-          >
-            <div class="item-main">
-              <div class="item-name">
-                {{ item.productName || group.name }}
-              </div>
-
-              <div v-if="item.note" class="item-note">
-                {{ item.note }}
-              </div>
-
-              <div class="item-date">到期日期：{{ item.expireDate }}</div>
+          <div v-if="!isGroupCollapsed(group.id)" class="group-body">
+            <div v-if="group.categoryNames.length > 0" class="group-categories">
+              <span
+                v-for="name in group.categoryNames"
+                :key="name"
+                class="category-chip"
+              >
+                {{ name }}
+              </span>
             </div>
 
-            <div class="item-side">
-              <Tag :type="EXPIRY_TAG_TYPES[item.expiryStatus.status]">
-                {{ item.expiryStatus.label }}
-              </Tag>
+            <div
+              v-for="item in group.items"
+              :key="item.id"
+              class="item-row"
+              :class="{ 'item-row--used': item.isUsed }"
+            >
+              <button
+                type="button"
+                class="item-check"
+                :aria-label="item.isUsed ? '恢复为未用完' : '标记为已用完'"
+                :aria-pressed="item.isUsed"
+                :disabled="saving"
+                @click.stop="toggleItemUsed(item)"
+              >
+                <Loading
+                  v-if="markingItemId === item.id"
+                  size="16"
+                  color="#969799"
+                />
 
-              <div class="item-actions">
-                <Button
-                  size="mini"
-                  plain
-                  :disabled="saving"
-                  @click="openEditItem(item)"
+                <span
+                  v-else
+                  class="item-check__circle"
+                  :class="{ 'item-check__circle--done': item.isUsed }"
                 >
-                  编辑
-                </Button>
+                  <Icon v-if="item.isUsed" name="success" size="14" />
+                </span>
+              </button>
 
-                <Button
-                  size="mini"
-                  plain
-                  type="danger"
-                  :loading="deletingItemId === item.id"
-                  :disabled="saving"
-                  @click="confirmDeleteItem(item)"
-                >
-                  删除
-                </Button>
-              </div>
+              <button
+                type="button"
+                class="item-main"
+                @click="openEditItem(item)"
+              >
+                <span class="item-text">
+                  <span class="item-name">
+                    {{ item.productName || group.name }}
+                  </span>
+
+                  <span class="item-meta">
+                    <span class="item-date">到期 {{ item.expireDate }}</span>
+
+                    <span
+                      v-if="item.countdown"
+                      class="item-countdown"
+                      :class="`item-countdown--${item.countdown.tone}`"
+                    >
+                      · {{ item.countdown.text }}
+                    </span>
+
+                    <span v-if="item.note" class="item-note">
+                      · {{ item.note }}
+                    </span>
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="item-more"
+                aria-label="物品操作"
+                :disabled="saving"
+                @click="openItemMenu(item, group.name)"
+              >
+                <Icon name="ellipsis" size="16" />
+              </button>
             </div>
+
+            <button
+              v-if="group.expiredCount > 0"
+              type="button"
+              class="group-expired-entry"
+              @click="openExpiredItems(group.id)"
+            >
+              <span>{{ group.expiredCount }} 件已过期</span>
+
+              <span class="group-expired-entry__action">
+                去处理
+                <Icon name="arrow" size="12" />
+              </span>
+            </button>
           </div>
-
-          <button
-            v-if="group.expiredCount > 0"
-            type="button"
-            class="group-expired-entry"
-            @click="openExpiredItems(group.id)"
-          >
-            <span>{{ group.expiredCount }} 件已过期</span>
-
-            <span class="group-expired-entry__action">
-              去处理
-              <Icon name="arrow" size="12" />
-            </span>
-          </button>
         </section>
       </template>
 
@@ -412,6 +594,17 @@ const listGroups = computed(() => {
         </Button>
       </div>
     </main>
+
+    <button
+      v-if="initialized"
+      type="button"
+      class="fab"
+      aria-label="新建物品"
+      :disabled="loading || saving"
+      @click="openCreateItem"
+    >
+      <Icon name="plus" size="24" />
+    </button>
 
     <ItemFormPopup
       v-model:show="itemFormVisible"
@@ -427,6 +620,22 @@ const listGroups = computed(() => {
     />
 
     <DataRecoveryPopup v-model:show="recoveryVisible" />
+
+    <ActionSheet
+      v-model:show="itemMenuVisible"
+      :title="itemMenuTitle"
+      :actions="ITEM_MENU_ACTIONS"
+      cancel-text="取消"
+      @select="onItemMenuSelect"
+    />
+
+    <ActionSheet
+      v-model:show="groupMenuVisible"
+      :title="groupMenuTitle"
+      :actions="GROUP_MENU_ACTIONS"
+      cancel-text="取消"
+      @select="onGroupMenuSelect"
+    />
   </div>
 </template>
 
@@ -437,7 +646,26 @@ const listGroups = computed(() => {
 }
 
 .home-content {
-  padding: 12px;
+  padding: 12px 12px 96px;
+}
+
+.nav-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.2;
+}
+
+.nav-title__main {
+  color: var(--van-text-color, #323233);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.nav-title__sub {
+  color: var(--van-text-color-2, #646566);
+  font-size: 10px;
 }
 
 .nav-actions {
@@ -463,19 +691,15 @@ const listGroups = computed(() => {
   text-align: right;
 }
 
-.create-entry {
-  margin-bottom: 12px;
-}
-
 .expired-banner {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
   border: 1px solid #ffd7d9;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff5f5;
   font: inherit;
   text-align: left;
@@ -490,30 +714,29 @@ const listGroups = computed(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #ffe1e3;
   color: var(--van-danger-color, #ee0a24);
 }
 
-.expired-banner__content {
+.expired-banner__text {
   display: flex;
   flex: 1;
   min-width: 0;
-  flex-direction: column;
-}
-
-.expired-banner__title {
-  color: var(--van-danger-color, #ee0a24);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.expired-banner__desc {
-  margin-top: 1px;
+  align-items: baseline;
+  gap: 3px;
+  overflow: hidden;
   color: var(--van-text-color-2, #646566);
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.expired-banner__text strong {
+  color: var(--van-danger-color, #ee0a24);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .expired-banner__action {
@@ -522,7 +745,7 @@ const listGroups = computed(() => {
   align-items: center;
   gap: 2px;
   color: var(--van-danger-color, #ee0a24);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -556,90 +779,273 @@ const listGroups = computed(() => {
   font-weight: 600;
 }
 
-.list-summary {
-  margin: 4px 0 12px;
-  color: var(--van-text-color-2, #646566);
-  font-size: 13px;
-}
-
 .group-card {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 14px;
   background: var(--van-background-2, #fff);
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
 }
 
 .group-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 12px 8px;
+  min-height: 44px;
+  padding-right: 4px;
+}
+
+.group-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 8px 10px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.group-toggle:active {
+  opacity: 0.7;
+}
+
+.group-caret {
+  flex-shrink: 0;
+  color: #969799;
 }
 
 .group-title {
-  min-width: 0;
-  font-size: 16px;
+  flex: 1;
+  min-width: 24px;
+  overflow: hidden;
+  font-size: 14px;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-expired-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--van-danger-color, #ee0a24);
+}
+
+.group-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 8px 28px;
+}
+
+.category-chip {
+  max-width: 100%;
+  padding: 0 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f2f3f5;
+  color: var(--van-text-color-2, #646566);
+  font-size: 11px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-count {
   flex-shrink: 0;
-  color: var(--van-text-color-2, #646566);
-  font-size: 12px;
+  color: var(--van-text-color-3, #c8c9cc);
+  font-size: 11px;
 }
 
-.category-list {
+.group-add {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 12px 10px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--van-primary-color, #1989fa);
 }
 
-.group-actions {
+.group-add:active {
+  background: #eef5ff;
+}
+
+.group-more {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 12px 10px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #969799;
+}
+
+.group-more:active {
+  background: #f2f3f5;
 }
 
 .item-row {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border-top: 1px solid var(--van-border-color, #ebedf0);
+  padding-left: 4px;
+}
+
+.item-row + .item-row::before {
+  position: absolute;
+  top: 0;
+  right: 44px;
+  left: 48px;
+  height: 1px;
+  background: var(--van-border-color, #ebedf0);
+  content: '';
+}
+
+.item-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.item-check__circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid #c8c9cc;
+  border-radius: 50%;
+  color: #fff;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.item-check:active .item-check__circle {
+  border-color: #969799;
+}
+
+.item-check__circle--done {
+  border-color: var(--van-success-color, #07c160);
+  background: var(--van-success-color, #07c160);
 }
 
 .item-main {
-  min-width: 0;
+  display: flex;
   flex: 1;
+  min-width: 0;
+  padding: 9px 2px 9px 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.item-main:active {
+  background: #f7f8fa;
+}
+
+.item-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .item-name {
-  overflow-wrap: anywhere;
-  font-size: 14px;
+  overflow: hidden;
+  color: var(--van-text-color, #323233);
+  font-size: 15px;
   font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.item-note {
-  margin-top: 5px;
+.item-meta {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  overflow: hidden;
   color: var(--van-text-color-2, #646566);
   font-size: 12px;
-  overflow-wrap: anywhere;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .item-date {
-  margin-top: 6px;
-  color: var(--van-text-color-2, #646566);
-  font-size: 12px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
-.item-row-used .item-name,
-.item-row-used .item-date {
-  color: var(--van-text-color-3, #c8c9cc);
+.item-countdown {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.item-countdown--danger {
+  color: #d81e06;
+}
+
+.item-countdown--warning {
+  color: #d46b08;
+}
+
+.item-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-row--used .item-name {
+  color: #9aa0a6;
+  font-weight: 400;
+  text-decoration: line-through;
+}
+
+.item-row--used .item-meta {
+  color: #b7babf;
+}
+
+.item-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin-right: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #969799;
+}
+
+.item-more:active {
+  background: #f2f3f5;
+  color: var(--van-text-color-2, #646566);
 }
 
 .group-expired-entry {
@@ -648,11 +1054,12 @@ const listGroups = computed(() => {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 14px;
   border: 0;
   border-top: 1px solid var(--van-border-color, #ebedf0);
   background: #fff8f8;
   color: var(--van-danger-color, #ee0a24);
+  font: inherit;
   font-size: 12px;
   font-weight: 500;
   text-align: left;
@@ -668,17 +1075,34 @@ const listGroups = computed(() => {
   gap: 2px;
 }
 
-.item-side {
+.fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
   display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--van-primary-color, #1989fa);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(25, 137, 250, 0.36);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.item-actions {
-  display: flex;
-  gap: 6px;
+.fab:active {
+  transform: scale(0.94);
+  box-shadow: 0 3px 10px rgba(25, 137, 250, 0.3);
+}
+
+.fab:disabled {
+  opacity: 0.5;
+  box-shadow: none;
 }
 
 .dev-entry {
