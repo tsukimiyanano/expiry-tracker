@@ -1,3 +1,5 @@
+import { EXPIRY_WARNING_DAYS } from '@/constants/expiry'
+
 export type ExpiryStatus = 'used' | 'expired' | 'today' | 'soon' | 'normal'
 
 export interface ExpiryStatusInfo {
@@ -6,7 +8,6 @@ export interface ExpiryStatusInfo {
   daysRemaining: number | null
 }
 
-const DEFAULT_SOON_DAYS = 7
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
 /**
@@ -56,7 +57,7 @@ export const DateUtils = {
     expireDate: string,
     isUsed = false,
     today = getLocalTodayDateOnly(),
-    soonDays = DEFAULT_SOON_DAYS,
+    soonDays = EXPIRY_WARNING_DAYS,
   ): ExpiryStatusInfo {
     if (isUsed) {
       return {

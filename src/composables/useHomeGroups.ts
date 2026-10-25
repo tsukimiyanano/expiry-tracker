@@ -1,5 +1,11 @@
 import { computed } from 'vue'
 
+import {
+  APPROX_DAYS_PER_MONTH,
+  EXPIRY_COUNTDOWN_DAY_MAX_DAYS,
+  EXPIRY_COUNTDOWN_MAX_DAYS,
+  EXPIRY_WARNING_DAYS,
+} from '@/constants/expiry'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { Item } from '@/types/item'
 import type { ItemGroup } from '@/types/item-group'
@@ -8,7 +14,7 @@ import { DateUtils } from '@/utils/date'
 
 export interface CountdownInfo {
   text: string
-  tone: 'danger' | 'warning'
+  tone: 'danger' | 'warning' | 'normal'
 }
 
 export interface HomeGroupItem extends Item {
@@ -45,11 +51,21 @@ function getCountdownInfo(
     return { text: '明天到期', tone: 'warning' }
   }
 
-  if (days <= 7) {
+  if (days <= EXPIRY_WARNING_DAYS) {
     return { text: `还剩 ${days} 天`, tone: 'warning' }
   }
 
-  return null
+  // 超过半年的物品只展示到期日期，不再追加倒计时。
+  if (days > EXPIRY_COUNTDOWN_MAX_DAYS) return null
+
+  // 一个月内按天提示，之后按月提示，避免「还剩 137 天」这类难以感知的数字。
+  if (days <= EXPIRY_COUNTDOWN_DAY_MAX_DAYS) {
+    return { text: `还剩 ${days} 天`, tone: 'normal' }
+  }
+
+  const months = Math.round(days / APPROX_DAYS_PER_MONTH)
+
+  return { text: `还剩约 ${months} 个月`, tone: 'normal' }
 }
 
 /**

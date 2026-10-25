@@ -189,6 +189,11 @@ const emit = defineEmits<{
   color: #d46b08;
 }
 
+.item-countdown--normal {
+  color: #969799;
+  font-weight: 400;
+}
+
 .item-note {
   min-width: 0;
   overflow: hidden;
