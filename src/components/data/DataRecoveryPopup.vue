@@ -95,8 +95,12 @@ function getFileLabel(entry: RecoveryFileEntry): string {
   const file = entry.file
   const details: string[] = []
 
-  // 快照文件名包含创建时间，展示后便于用户判断要撤销哪一次导入。
-  if (entry.source === 'import-snapshot' && file.state !== 'missing') {
+  // 快照文件名包含创建时间或版本信息，展示后便于用户判断要回退到哪一份数据。
+  if (
+    (entry.source === 'import-snapshot' ||
+      entry.source === 'migration-snapshot') &&
+    file.state !== 'missing'
+  ) {
     details.push(file.fileName)
   }
 
@@ -125,6 +129,11 @@ const recoveryFiles = computed<RecoveryFileEntry[]>(() => {
       file: status.value.importSnapshot,
       source: 'import-snapshot',
     },
+    {
+      title: '迁移前快照',
+      file: status.value.migrationSnapshot,
+      source: 'migration-snapshot',
+    },
   ]
 })
 
@@ -146,11 +155,17 @@ async function restore(source: RecoverySource) {
       ? '最近一次备份'
       : source === 'temp'
         ? '保存中断时的临时数据'
-        : '最近一次导入前的快照'
+        : source === 'import-snapshot'
+          ? '最近一次导入前的快照'
+          : '数据版本迁移前的快照'
 
-  // 撤销导入会覆盖当前有效数据，需要额外说明后果。
+  // 撤销导入或迁移会覆盖当前有效数据，需要额外说明后果。
   const extraHint =
-    source === 'import-snapshot' ? '当前已导入的数据将被撤销。' : ''
+    source === 'import-snapshot'
+      ? '当前已导入的数据将被撤销。'
+      : source === 'migration-snapshot'
+        ? '当前数据将回退到版本迁移前的内容。'
+        : ''
 
   try {
     await showConfirmDialog({
@@ -262,6 +277,19 @@ async function restore(source: RecoverySource) {
         <div class="recovery-panel__actions recovery-panel__actions--secondary">
           <Button
             class="recovery-action"
+            :loading="restoring && restoringSource === 'migration-snapshot'"
+            :disabled="
+              loadingStatus || restoring || !canRestore('migration-snapshot')
+            "
+            @click="restore('migration-snapshot')"
+          >
+            从迁移前快照恢复
+          </Button>
+        </div>
+
+        <div class="recovery-panel__actions recovery-panel__actions--secondary">
+          <Button
+            class="recovery-action"
             :loading="restoring && restoringSource === 'backup'"
             :disabled="loadingStatus || restoring || !canRestore('backup')"
             @click="restore('backup')"
@@ -280,7 +308,7 @@ async function restore(source: RecoverySource) {
         </div>
 
         <p class="recovery-panel__hint">
-          恢复不会删除备份文件、导入前快照或原始候选文件，恢复前会尽量保留现有主文件。
+          恢复不会删除备份文件、导入前快照、迁移前快照或原始候选文件，恢复前会尽量保留现有主文件。
         </p>
       </template>
 

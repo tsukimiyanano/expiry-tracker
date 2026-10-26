@@ -15,7 +15,8 @@ function isCategory(value: unknown): value is Category {
     StringUtils.isString(value.id) &&
     value.id.length > 0 &&
     StringUtils.isString(value.name) &&
-    value.name.trim().length > 0
+    value.name.trim().length > 0 &&
+    StringUtils.isString(value.description)
   )
 }
 

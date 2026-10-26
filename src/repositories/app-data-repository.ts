@@ -15,6 +15,10 @@ import {
   APP_DATA_FILE_NAME,
   APP_DATA_IMPORT_SNAPSHOT_PREFIX,
   APP_DATA_IMPORT_SNAPSHOT_TEMP_FILE_NAME,
+  APP_DATA_MIGRATION_FAILED_FILE_PREFIX,
+  APP_DATA_MIGRATION_ROLLBACK_FILE_PREFIX,
+  APP_DATA_MIGRATION_SNAPSHOT_PREFIX,
+  APP_DATA_MIGRATION_TEMP_FILE_PREFIX,
   APP_DATA_RESTORE_TEMP_FILE_NAME,
   APP_DATA_TEMP_FILE_NAME,
   APP_DATA_VERSION,
@@ -106,6 +110,54 @@ async function findLatestImportSnapshotFileName(): Promise<string | null> {
   return fileNames[0] ?? null
 }
 
+function isMigrationSnapshotFileName(name: string): boolean {
+  return (
+    name.startsWith(APP_DATA_MIGRATION_SNAPSHOT_PREFIX) &&
+    name.endsWith('.json')
+  )
+}
+
+/**
+ * 列出所有迁移前保护快照文件名，按文件名倒序（较新的版本在前）。
+ */
+async function listMigrationSnapshotFileNames(): Promise<string[]> {
+  const entries = await readDir('.', { baseDir })
+
+  return entries
+    .filter((entry) => entry.isFile && isMigrationSnapshotFileName(entry.name))
+    .map((entry) => entry.name)
+    .sort((a, b) => b.localeCompare(a))
+}
+
+async function findLatestMigrationSnapshotFileName(): Promise<string | null> {
+  const fileNames = await listMigrationSnapshotFileNames()
+
+  return fileNames[0] ?? null
+}
+
+const MIGRATION_FILE_PREFIXES = [
+  APP_DATA_MIGRATION_SNAPSHOT_PREFIX,
+  APP_DATA_MIGRATION_TEMP_FILE_PREFIX,
+  APP_DATA_MIGRATION_ROLLBACK_FILE_PREFIX,
+  APP_DATA_MIGRATION_FAILED_FILE_PREFIX,
+]
+
+/**
+ * 是否存在迁移过程残留文件。
+ *
+ * 迁移被系统终止时可能留下这些文件而正式文件已缺失，
+ * 此时不能按首次安装初始化。
+ */
+async function hasMigrationResidue(): Promise<boolean> {
+  const entries = await readDir('.', { baseDir })
+
+  return entries.some(
+    (entry) =>
+      entry.isFile &&
+      MIGRATION_FILE_PREFIXES.some((prefix) => entry.name.startsWith(prefix)),
+  )
+}
+
 /**
  * 读取并校验当前版本的数据文件。
  *
@@ -123,7 +175,7 @@ async function readValidatedFile(name: string): Promise<AppData> {
 /**
  * 读取数据文件并迁移至当前版本。
  *
- * 仅用于从磁盘加载正式数据；迁移结果暂不自动写回。
+ * 用于从磁盘加载正式数据，以及迁移后确认主文件内容。
  */
 async function readMigratedFile(name: string): Promise<AppData> {
   const content = await readTextFile(name, { baseDir })
@@ -212,9 +264,12 @@ async function writeData(content: string): Promise<void> {
     const hasBackupFile = await fileExists(APP_DATA_BACKUP_FILE_NAME)
     const hasImportSnapshot =
       (await findLatestImportSnapshotFileName()) !== null
+    const hasMigrationFiles = await hasMigrationResidue()
 
-    if (hasBackupFile || hasImportSnapshot) {
-      throw new Error('正式数据文件缺失，但检测到备份或导入前快照，已停止保存')
+    if (hasBackupFile || hasImportSnapshot || hasMigrationFiles) {
+      throw new Error(
+        '正式数据文件缺失，但检测到备份、导入前快照或迁移过程文件，已停止保存',
+      )
     }
   }
 
@@ -239,6 +294,148 @@ async function writeData(content: string): Promise<void> {
 }
 
 /**
+ * 迁移事务：永久保留原始数据，安全写入当前版本数据。
+ *
+ * 必须在 Repository 串行队列内部调用，不得再调用 load()/save()。
+ * 任何一步失败都不能让原始数据被新数据覆盖。
+ */
+async function persistMigratedData(
+  originalText: string,
+  migratedData: AppData,
+  sourceVersion: number,
+): Promise<void> {
+  validateAppData(migratedData)
+
+  const id = crypto.randomUUID()
+
+  const snapshotFileName = `${APP_DATA_MIGRATION_SNAPSHOT_PREFIX}v${sourceVersion}-${id}.json`
+  const stageFileName = `${APP_DATA_MIGRATION_TEMP_FILE_PREFIX}${id}.tmp`
+  const rollbackFileName = `${APP_DATA_MIGRATION_ROLLBACK_FILE_PREFIX}${id}`
+  const failedFileName = `${APP_DATA_MIGRATION_FAILED_FILE_PREFIX}${id}`
+
+  const occupied = await Promise.all([
+    fileExists(snapshotFileName),
+    fileExists(stageFileName),
+    fileExists(rollbackFileName),
+    fileExists(failedFileName),
+  ])
+
+  if (occupied.some(Boolean)) {
+    throw new Error('迁移保护文件已存在，已中止迁移')
+  }
+
+  // 再次核对主文件，防止基于陈旧内容执行迁移。
+  const currentText = await readTextFile(APP_DATA_FILE_NAME, { baseDir })
+
+  if (currentText !== originalText) {
+    throw new Error('迁移期间主数据文件发生变化，已中止迁移')
+  }
+
+  // 1. 永久保留原始旧版本数据，并回读确认内容一致。
+  await copyFile(APP_DATA_FILE_NAME, snapshotFileName, {
+    fromPathBaseDir: baseDir,
+    toPathBaseDir: baseDir,
+  })
+
+  const snapshotText = await readTextFile(snapshotFileName, { baseDir })
+
+  if (snapshotText !== originalText) {
+    throw new Error('迁移保护快照校验失败，已中止迁移')
+  }
+
+  // 2. 写入迁移后的数据，并回读校验为当前版本。
+  await writeTextFile(stageFileName, JSON.stringify(migratedData, null, 2), {
+    baseDir,
+  })
+
+  await readValidatedFile(stageFileName)
+
+  // 3. 替换前再次确认主文件未被修改。
+  const latestText = await readTextFile(APP_DATA_FILE_NAME, { baseDir })
+
+  if (latestText !== originalText) {
+    throw new Error('主文件在迁移期间被修改，已中止替换')
+  }
+
+  // 4. 替换主数据文件，失败时尽力回滚。
+  let oldFileMoved = false
+  let newFileMoved = false
+
+  try {
+    await rename(APP_DATA_FILE_NAME, rollbackFileName, {
+      oldPathBaseDir: baseDir,
+      newPathBaseDir: baseDir,
+    })
+    oldFileMoved = true
+
+    await rename(stageFileName, APP_DATA_FILE_NAME, {
+      oldPathBaseDir: baseDir,
+      newPathBaseDir: baseDir,
+    })
+    newFileMoved = true
+
+    await readMigratedFile(APP_DATA_FILE_NAME)
+  } catch (cause) {
+    if (oldFileMoved) {
+      try {
+        // 不直接覆盖已有回滚文件：先移开未确认的新文件。
+        if (newFileMoved) {
+          await rename(APP_DATA_FILE_NAME, failedFileName, {
+            oldPathBaseDir: baseDir,
+            newPathBaseDir: baseDir,
+          })
+        }
+
+        await rename(rollbackFileName, APP_DATA_FILE_NAME, {
+          oldPathBaseDir: baseDir,
+          newPathBaseDir: baseDir,
+        })
+      } catch (rollbackCause) {
+        throw new Error(
+          '数据迁移失败，自动回滚也失败。请保留现有文件并执行恢复检查。' +
+            `（迁移错误：${ErrorUtils.getMessage(cause)}；` +
+            `回滚错误：${ErrorUtils.getMessage(rollbackCause)}）`,
+          { cause },
+        )
+      }
+    }
+
+    throw cause
+  }
+
+  // 5. 主文件已确认可用，清理迁移过程文件。
+  // 清理失败不影响迁移结果，永久保护快照始终保留。
+  try {
+    if (await exists(rollbackFileName, { baseDir })) {
+      await remove(rollbackFileName, { baseDir })
+    }
+
+    if (await exists(stageFileName, { baseDir })) {
+      await remove(stageFileName, { baseDir })
+    }
+  } catch {
+    // 留待后续文件维护流程处理。
+  }
+}
+
+/**
+ * 加载已存在的正式数据，必要时执行自动迁移写回。
+ */
+async function loadExistingData(): Promise<AppData> {
+  const originalText = await readTextFile(APP_DATA_FILE_NAME, { baseDir })
+  const parsed: unknown = JSON.parse(originalText)
+  const result = migrateAppData(parsed)
+
+  if (!result.migrated) {
+    return result.data
+  }
+
+  await persistMigratedData(originalText, result.data, result.sourceVersion)
+
+  return result.data
+}
+
+/**
  * 加载应用数据。
  *
  * 首次启动（不存在任何历史文件）时创建初始空数据。
@@ -251,14 +448,15 @@ async function loadData(): Promise<AppData> {
 
   if (hasMainFile) {
     try {
-      return await readMigratedFile(APP_DATA_FILE_NAME)
-    } catch {
+      return await loadExistingData()
+    } catch (cause) {
       const hasBackupFile = await fileExists(APP_DATA_BACKUP_FILE_NAME)
 
       throw new Error(
         hasBackupFile
-          ? '正式数据文件无效，检测到备份文件，请先恢复数据'
-          : '正式数据文件无效，且没有检测到备份，请保留原始文件',
+          ? `数据读取或版本迁移失败，检测到备份文件，请先恢复数据：${ErrorUtils.getMessage(cause)}`
+          : `数据读取或版本迁移失败，且没有检测到备份，请保留原始文件：${ErrorUtils.getMessage(cause)}`,
+        { cause },
       )
     }
   }
@@ -266,10 +464,11 @@ async function loadData(): Promise<AppData> {
   const hasBackupFile = await fileExists(APP_DATA_BACKUP_FILE_NAME)
   const hasTempFile = await fileExists(APP_DATA_TEMP_FILE_NAME)
   const hasImportSnapshot = (await findLatestImportSnapshotFileName()) !== null
+  const hasMigrationFiles = await hasMigrationResidue()
 
-  // 备份、临时文件和导入前快照都可能代表历史数据，
+  // 备份、临时文件、导入前快照和迁移过程文件都可能代表历史数据，
   // 不能按首次启动初始化。
-  if (hasBackupFile || hasTempFile || hasImportSnapshot) {
+  if (hasBackupFile || hasTempFile || hasImportSnapshot || hasMigrationFiles) {
     throw new Error('正式数据文件缺失，但检测到历史数据文件，已停止初始化')
   }
 
@@ -283,7 +482,7 @@ async function loadData(): Promise<AppData> {
 /**
  * 检查单个数据文件的状态。
  *
- * invalid 表示内容不是合法 JSON 或不符合数据结构；
+ * 旧版本数据会校验并迁移后参与判断，合法的 V1 文件不会被当作损坏；
  * unreadable 表示文件存在但读取失败，两者不能混淆。
  */
 async function inspectRecoveryFile(
@@ -313,16 +512,15 @@ async function inspectRecoveryFile(
 
     try {
       const parsed: unknown = JSON.parse(content)
-
-      validateAppData(parsed)
+      const { data } = migrateAppData(parsed)
 
       return {
         fileName,
         state: 'valid',
         summary: {
-          groupCount: parsed.groups.length,
-          itemCount: parsed.items.length,
-          categoryCount: parsed.categories.length,
+          groupCount: data.groups.length,
+          itemCount: data.items.length,
+          categoryCount: data.categories.length,
         },
       }
     } catch (cause) {
@@ -371,19 +569,47 @@ async function inspectImportSnapshotFile(): Promise<RecoveryFileInfo> {
 }
 
 /**
- * 检查正式文件、备份文件、临时文件和导入前快照的状态。
+ * 检查最近一次迁移前保护快照的状态。
+ */
+async function inspectMigrationSnapshotFile(): Promise<RecoveryFileInfo> {
+  const displayName = `${APP_DATA_MIGRATION_SNAPSHOT_PREFIX}*`
+
+  try {
+    const fileName = await findLatestMigrationSnapshotFileName()
+
+    if (!fileName) {
+      return {
+        fileName: displayName,
+        state: 'missing',
+      }
+    }
+
+    return await inspectRecoveryFile(fileName)
+  } catch (cause) {
+    return {
+      fileName: displayName,
+      state: 'unreadable',
+      error: ErrorUtils.getMessage(cause),
+    }
+  }
+}
+
+/**
+ * 检查正式文件、备份文件、临时文件、导入前快照与迁移前快照的状态。
  */
 async function inspectRecoveryData(): Promise<AppDataRecoveryStatus> {
   await ensureDataDirectory()
 
-  const [main, backup, temp, importSnapshot] = await Promise.all([
-    inspectRecoveryFile(APP_DATA_FILE_NAME),
-    inspectRecoveryFile(APP_DATA_BACKUP_FILE_NAME),
-    inspectRecoveryFile(APP_DATA_TEMP_FILE_NAME),
-    inspectImportSnapshotFile(),
-  ])
+  const [main, backup, temp, importSnapshot, migrationSnapshot] =
+    await Promise.all([
+      inspectRecoveryFile(APP_DATA_FILE_NAME),
+      inspectRecoveryFile(APP_DATA_BACKUP_FILE_NAME),
+      inspectRecoveryFile(APP_DATA_TEMP_FILE_NAME),
+      inspectImportSnapshotFile(),
+      inspectMigrationSnapshotFile(),
+    ])
 
-  return { main, backup, temp, importSnapshot }
+  return { main, backup, temp, importSnapshot, migrationSnapshot }
 }
 
 /**
@@ -402,9 +628,12 @@ async function restoreData(source: RecoverySource): Promise<void> {
   }
 
   // 备份和临时文件不允许覆盖有效的正式文件；
-  // 导入前快照是例外，用于撤销最近一次导入。
-  if (source !== 'import-snapshot' && status.main.state === 'valid') {
-    throw new Error('当前正式数据文件有效，只能使用导入前快照撤销导入')
+  // 导入前快照与迁移前快照是例外，用于撤销导入或迁移。
+  const isSnapshotSource =
+    source === 'import-snapshot' || source === 'migration-snapshot'
+
+  if (!isSnapshotSource && status.main.state === 'valid') {
+    throw new Error('当前正式数据文件有效，只能使用快照撤销导入或迁移')
   }
 
   const candidate =
@@ -412,7 +641,9 @@ async function restoreData(source: RecoverySource): Promise<void> {
       ? status.backup
       : source === 'temp'
         ? status.temp
-        : status.importSnapshot
+        : source === 'import-snapshot'
+          ? status.importSnapshot
+          : status.migrationSnapshot
 
   if (candidate.state !== 'valid') {
     throw new Error('所选恢复文件不存在或未通过数据校验，请重新检查恢复状态')
@@ -427,13 +658,28 @@ async function restoreData(source: RecoverySource): Promise<void> {
 
   await ensureDataDirectory()
 
-  // 先准备恢复暂存文件，不动现有正式文件。
-  await copyFile(sourceFileName, APP_DATA_RESTORE_TEMP_FILE_NAME, {
-    fromPathBaseDir: baseDir,
-    toPathBaseDir: baseDir,
-  })
+  // 候选文件可能是旧版本，必须先迁移成当前版本再写入。
+  let restoredData: AppData
 
-  // 复制后再次检查，防止将无效数据提交为正式数据。
+  try {
+    const candidateText = await readTextFile(sourceFileName, { baseDir })
+    const parsed: unknown = JSON.parse(candidateText)
+
+    restoredData = migrateAppData(parsed).data
+  } catch (cause) {
+    throw new Error('所选恢复文件不存在或未通过数据校验，请重新检查恢复状态', {
+      cause,
+    })
+  }
+
+  // 先准备恢复暂存文件，不动现有正式文件。
+  await writeTextFile(
+    APP_DATA_RESTORE_TEMP_FILE_NAME,
+    JSON.stringify(restoredData, null, 2),
+    { baseDir },
+  )
+
+  // 写入后再次检查，防止将无效数据提交为正式数据。
   await readValidatedFile(APP_DATA_RESTORE_TEMP_FILE_NAME)
 
   const mainExists = await fileExists(APP_DATA_FILE_NAME)

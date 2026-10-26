@@ -16,7 +16,7 @@ export interface RecoveryStatusPresentation {
  * 与 Repository 的恢复限制保持一致：
  * 主文件无法读取时一律禁止恢复，避免误覆盖现场；
  * 备份和临时文件不允许覆盖有效的正式文件；
- * 导入前快照是例外，用于撤销最近一次导入。
+ * 导入前快照与迁移前快照是例外，用于撤销导入或迁移。
  */
 function canRestore(
   status: AppDataRecoveryStatus,
@@ -29,11 +29,15 @@ function canRestore(
       ? status.backup
       : source === 'temp'
         ? status.temp
-        : status.importSnapshot
+        : source === 'import-snapshot'
+          ? status.importSnapshot
+          : status.migrationSnapshot
 
   if (candidate.state !== 'valid') return false
 
-  if (source === 'import-snapshot') return true
+  if (source === 'import-snapshot' || source === 'migration-snapshot') {
+    return true
+  }
 
   return status.main.state !== 'valid'
 }
@@ -78,8 +82,18 @@ export const DataRecoveryStatusUtils = {
 
   getRecoveryMessage(status: AppDataRecoveryStatus): string {
     if (status.main.state === 'valid') {
-      return canRestore(status, 'import-snapshot')
-        ? '主数据文件正常。如需撤销最近一次导入，可从导入前快照恢复。'
+      const hints: string[] = []
+
+      if (canRestore(status, 'import-snapshot')) {
+        hints.push('如需撤销最近一次导入，可从导入前快照恢复')
+      }
+
+      if (canRestore(status, 'migration-snapshot')) {
+        hints.push('如需撤销数据版本迁移，可从迁移前快照恢复')
+      }
+
+      return hints.length > 0
+        ? `主数据文件正常。${hints.join('；')}。`
         : '主数据文件正常，无需执行数据恢复。'
     }
 
@@ -93,6 +107,8 @@ export const DataRecoveryStatusUtils = {
     if (canRestore(status, 'temp')) availableSources.push('临时文件')
     if (canRestore(status, 'import-snapshot'))
       availableSources.push('导入前快照')
+    if (canRestore(status, 'migration-snapshot'))
+      availableSources.push('迁移前快照')
 
     if (availableSources.length === 0) {
       return '当前没有可用的恢复文件，请勿反复尝试覆盖数据。'

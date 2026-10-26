@@ -39,6 +39,7 @@ export function resolveCategoryNames(
       category = {
         id: StringUtils.createId('cat'),
         name: categoryName,
+        description: '',
       }
 
       nextCategories.push(category)

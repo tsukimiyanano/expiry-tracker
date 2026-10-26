@@ -18,6 +18,11 @@ export interface AppDataRecoveryStatus {
   backup: RecoveryFileInfo
   temp: RecoveryFileInfo
   importSnapshot: RecoveryFileInfo
+  migrationSnapshot: RecoveryFileInfo
 }
 
-export type RecoverySource = 'backup' | 'temp' | 'import-snapshot'
+export type RecoverySource =
+  | 'backup'
+  | 'temp'
+  | 'import-snapshot'
+  | 'migration-snapshot'

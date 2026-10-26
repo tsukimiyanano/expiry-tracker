@@ -186,7 +186,7 @@ function openRecovery() {
         <CellGroup inset>
           <Cell
             title="检查备份与恢复"
-            label="检查主数据、备份、临时文件与导入前快照"
+            label="检查主数据、备份、临时文件、导入前快照与迁移前快照"
             is-link
             :clickable="!busy"
             :class="{ 'cell-disabled': busy }"

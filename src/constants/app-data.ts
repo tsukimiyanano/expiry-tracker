@@ -41,6 +41,35 @@ export const APP_DATA_IMPORT_SNAPSHOT_TEMP_FILE_NAME = `${APP_DATA_FILE_NAME}.pr
 export const APP_DATA_RESTORE_TEMP_FILE_NAME = `${APP_DATA_FILE_NAME}.restore.tmp`
 
 /**
+ * 迁移前保护快照文件名前缀
+ *
+ * 迁移前永久保留原始旧版本数据，完整文件名形如
+ * app-data.json.pre-migration-v1-<unique-id>.json。
+ */
+export const APP_DATA_MIGRATION_SNAPSHOT_PREFIX = `${APP_DATA_FILE_NAME}.pre-migration-`
+
+/**
+ * 迁移暂存文件名前缀
+ *
+ * 写入迁移后的数据并校验通过后，才替换正式文件。
+ */
+export const APP_DATA_MIGRATION_TEMP_FILE_PREFIX = `${APP_DATA_FILE_NAME}.migration-stage-`
+
+/**
+ * 迁移回滚文件名前缀
+ *
+ * 替换正式文件前，将原始文件移动到该名称，用于失败时回滚。
+ */
+export const APP_DATA_MIGRATION_ROLLBACK_FILE_PREFIX = `${APP_DATA_FILE_NAME}.migration-rollback-`
+
+/**
+ * 迁移失败文件名前缀
+ *
+ * 回滚时用于移开已写入但未能确认的新文件。
+ */
+export const APP_DATA_MIGRATION_FAILED_FILE_PREFIX = `${APP_DATA_FILE_NAME}.migration-failed-`
+
+/**
  * 当前应用数据结构版本
  */
-export const APP_DATA_VERSION = 1
+export const APP_DATA_VERSION = 2 as const

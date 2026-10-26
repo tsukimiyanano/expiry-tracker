@@ -1,7 +1,9 @@
 import { APP_DATA_VERSION } from '@/constants/app-data'
+import { migrateV1ToV2 } from '@/migrations/v1-to-v2'
 import type { AppData } from '@/types/app-data'
 import { ObjectUtils } from '@/utils/object'
 import { validateAppData } from '@/validators/app-data-validator'
+import { validateAppDataV1 } from '@/validators/migrations/app-data-v1-validator'
 
 export interface AppDataMigrationResult {
   data: AppData
@@ -37,7 +39,7 @@ function getDataVersion(value: unknown): number {
  * 解析并迁移应用数据至当前支持的版本。
  *
  * 不修改输入，不执行文件 IO。
- * 仅返回通过校验的数据。
+ * 仅返回通过当前版本校验的数据。
  */
 export function migrateAppData(value: unknown): AppDataMigrationResult {
   const sourceVersion = getDataVersion(value)
@@ -48,19 +50,32 @@ export function migrateAppData(value: unknown): AppDataMigrationResult {
     )
   }
 
+  let data: AppData
+
   switch (sourceVersion) {
     case 1: {
-      validateAppData(value)
+      validateAppDataV1(value)
+      data = migrateV1ToV2(value)
+      break
+    }
 
-      return {
-        data: value,
-        sourceVersion,
-        targetVersion: APP_DATA_VERSION,
-        migrated: false,
-      }
+    case 2: {
+      validateAppData(value)
+      data = structuredClone(value)
+      break
     }
 
     default:
       throw new Error(`不支持的数据版本：V${sourceVersion}`)
+  }
+
+  // 无论来自哪个版本，最终都必须通过当前版本校验。
+  validateAppData(data)
+
+  return {
+    data,
+    sourceVersion,
+    targetVersion: APP_DATA_VERSION,
+    migrated: sourceVersion !== APP_DATA_VERSION,
   }
 }
