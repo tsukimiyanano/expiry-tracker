@@ -19,6 +19,7 @@ import {
   APP_DATA_TEMP_FILE_NAME,
   APP_DATA_VERSION,
 } from '@/constants/app-data'
+import { migrateAppData } from '@/migrations/app-data-migrator'
 import { AsyncUtils } from '@/utils/async'
 import { DataTransferError } from '@/utils/data-transfer-error'
 import { ErrorUtils } from '@/utils/error'
@@ -106,7 +107,9 @@ async function findLatestImportSnapshotFileName(): Promise<string | null> {
 }
 
 /**
- * 读取并校验数据文件。
+ * 读取并校验当前版本的数据文件。
+ *
+ * 用于临时文件回读、备份文件校验与恢复暂存文件校验。
  */
 async function readValidatedFile(name: string): Promise<AppData> {
   const content = await readTextFile(name, { baseDir })
@@ -115,6 +118,18 @@ async function readValidatedFile(name: string): Promise<AppData> {
   validateAppData(parsed)
 
   return parsed
+}
+
+/**
+ * 读取数据文件并迁移至当前版本。
+ *
+ * 仅用于从磁盘加载正式数据；迁移结果暂不自动写回。
+ */
+async function readMigratedFile(name: string): Promise<AppData> {
+  const content = await readTextFile(name, { baseDir })
+  const parsed: unknown = JSON.parse(content)
+
+  return migrateAppData(parsed).data
 }
 
 /**
@@ -236,7 +251,7 @@ async function loadData(): Promise<AppData> {
 
   if (hasMainFile) {
     try {
-      return await readValidatedFile(APP_DATA_FILE_NAME)
+      return await readMigratedFile(APP_DATA_FILE_NAME)
     } catch {
       const hasBackupFile = await fileExists(APP_DATA_BACKUP_FILE_NAME)
 

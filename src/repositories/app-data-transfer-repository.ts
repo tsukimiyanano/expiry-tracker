@@ -2,6 +2,7 @@ import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
 import type { AppData } from '@/types/app-data'
+import { migrateAppData } from '@/migrations/app-data-migrator'
 import { DataTransferError } from '@/utils/data-transfer-error'
 import { validateAppData } from '@/validators/app-data-validator'
 
@@ -101,13 +102,11 @@ export const appDataTransferRepository = {
     }
 
     try {
-      validateAppData(parsed)
+      return migrateAppData(parsed).data
     } catch (error) {
       throw new DataTransferError('invalid-data', 'Invalid application data', {
         cause: error,
       })
     }
-
-    return parsed
   },
 }
