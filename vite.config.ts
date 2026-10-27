@@ -1,3 +1,5 @@
+/// <reference types="vitest/config" />
+
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import process from 'node:process'
@@ -34,5 +36,12 @@ export default defineConfig(() => ({
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ['**/src-tauri/**'],
     },
+  },
+
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    clearMocks: true,
+    restoreMocks: true,
   },
 }))
