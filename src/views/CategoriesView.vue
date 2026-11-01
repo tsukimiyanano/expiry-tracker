@@ -14,7 +14,6 @@ import {
   showConfirmDialog,
 } from 'vant'
 import type { FieldRule } from 'vant'
-import { useRouter } from 'vue-router'
 
 import { useAppDataStore } from '@/stores/app-data-store'
 import { useBackButtonHandler } from '@/composables/useBackButtonHandler'
@@ -30,7 +29,6 @@ const nameRules: FieldRule[] = [
   },
 ]
 
-const router = useRouter()
 const store = useAppDataStore()
 
 const { categories, groups, items, initialized, loading, saving, error } =
@@ -92,14 +90,6 @@ const categoryList = computed(() => {
 })
 
 const categoryCount = computed(() => categories.value.length)
-
-function goBack() {
-  if (router.options.history.state.back) {
-    router.back()
-  } else {
-    void router.replace({ name: 'home' })
-  }
-}
 
 function initialize() {
   operationError.value = null
@@ -230,7 +220,7 @@ async function confirmDelete(category: Category, groupCount: number) {
 </script>
 
 <template>
-  <NavBar title="分类管理" left-arrow @click-left="goBack" />
+  <NavBar title="分类管理" />
 
   <div class="categories-view">
     <div v-if="initialized" class="categories-view__summary">

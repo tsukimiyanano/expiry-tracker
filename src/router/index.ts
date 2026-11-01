@@ -8,11 +8,19 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: () => import('@/views/HomeView.vue'),
+      meta: { showTabbar: true },
     },
     {
       path: '/categories',
       name: 'categories',
       component: () => import('@/views/CategoriesView.vue'),
+      meta: { showTabbar: true },
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
+      meta: { showTabbar: true },
     },
     {
       path: '/expired-items',

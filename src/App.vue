@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 
+import AppTabbar from '@/components/layout/AppTabbar.vue'
 import { useBackButtonController } from '@/composables/useBackButtonController'
 
 // 统一接管 Android 返回键，弹窗关闭后交还系统默认行为。
 useBackButtonController()
+
+const route = useRoute()
+
+const showTabbar = computed(() => route.meta.showTabbar === true)
 </script>
 
 <template>
-  <div class="app-container">
+  <div class="app-container" :class="{ 'app-container--tabbar': showTabbar }">
     <RouterView />
+
+    <AppTabbar v-if="showTabbar" />
   </div>
 </template>
 
@@ -41,6 +49,13 @@ body {
 .app-container {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 底部导航固定悬浮，为内容预留同等高度，避免最后一段内容被遮挡。 */
+.app-container--tabbar {
+  padding-bottom: calc(
+    var(--van-tabbar-height) + env(safe-area-inset-bottom, 0px)
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {

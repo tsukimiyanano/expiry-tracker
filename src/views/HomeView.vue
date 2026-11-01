@@ -80,8 +80,8 @@ function toggleGroup(groupId: string) {
   collapsedGroupIds.value = next
 }
 
-function openDataManagement() {
-  void router.push({ name: 'data-management' })
+function openSettings() {
+  void router.push({ name: 'settings' })
 }
 
 function openExpiredItems(groupId: string | null = null) {
@@ -102,21 +102,6 @@ function openExpiredItems(groupId: string | null = null) {
             {{ groups.length }} 个分组 · {{ items.length }} 件物品
           </span>
         </span>
-      </template>
-
-      <template #right>
-        <div class="nav-actions">
-          <span class="nav-action" @click="router.push({ name: 'categories' })">
-            分类管理
-          </span>
-
-          <Icon
-            name="setting-o"
-            class="nav-action nav-action-icon"
-            size="22"
-            @click="openDataManagement"
-          />
-        </div>
       </template>
     </NavBar>
 
@@ -320,7 +305,9 @@ function openExpiredItems(groupId: string | null = null) {
 .fab {
   position: fixed;
   right: 18px;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(
+    var(--van-tabbar-height) + 20px + env(safe-area-inset-bottom, 0px)
+  );
   z-index: 10;
   display: flex;
   align-items: center;
