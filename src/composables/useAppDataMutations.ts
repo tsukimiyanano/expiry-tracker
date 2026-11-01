@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 
 import { appDataRepository } from '@/repositories/app-data-repository'
+import { notificationScheduler } from '@/services/notification/notification-scheduler'
 import { resolveCategoryNames } from '@/services/category-service'
 import { useAppDataEditing } from '@/composables/useAppDataEditing'
 import { AsyncUtils } from '@/utils/async'
@@ -91,6 +92,11 @@ export function useAppDataMutations(options: AppDataMutationOptions) {
 
         // 只有保存成功后，才提交新的响应式状态。
         data.value = nextData
+
+        // 通知调度属于附属操作，失败不能影响已经成功的数据保存。
+        void notificationScheduler.sync(nextData).catch((cause) => {
+          console.error('同步到期提醒失败：', cause)
+        })
 
         return result
       } catch (cause) {

@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { appDataRepository } from '@/repositories/app-data-repository'
+import { notificationScheduler } from '@/services/notification/notification-scheduler'
+import { notificationService } from '@/services/notification/notification-service'
 import { ErrorUtils } from '@/utils/error'
 import type { AppData } from '@/types/app-data'
 import { useAppDataMutations } from '@/composables/useAppDataMutations'
@@ -34,8 +36,15 @@ export const useAppDataStore = defineStore('app-data', () => {
 
     const task = (async () => {
       try {
-        data.value = await appDataRepository.load()
+        const loadedData = await appDataRepository.load()
+
+        data.value = loadedData
         initialized.value = true
+
+        // 应用启动时根据磁盘中的正式数据修复通知调度状态。
+        void notificationScheduler.sync(loadedData).catch((cause) => {
+          console.error('初始化到期提醒失败：', cause)
+        })
       } catch (cause) {
         error.value = ErrorUtils.getMessage(cause)
         throw cause
@@ -91,6 +100,28 @@ export const useAppDataStore = defineStore('app-data', () => {
     await initialize()
   }
 
+  /**
+   * 用户主动开启到期提醒
+   *
+   * 权限申请由用户操作触发，避免应用启动时突然弹出系统授权框。
+   * 权限被拒绝返回 false；同步失败会向调用方抛出异常。
+   */
+  async function enableNotifications(): Promise<boolean> {
+    const granted = await notificationService.requestNotificationPermission()
+
+    if (!granted) {
+      return false
+    }
+
+    await initialize()
+
+    if (data.value) {
+      await notificationScheduler.sync(data.value)
+    }
+
+    return true
+  }
+
   return {
     data,
     groups,
@@ -103,6 +134,7 @@ export const useAppDataStore = defineStore('app-data', () => {
     initialize,
     importData,
     reload,
+    enableNotifications,
     ...mutations,
   }
 })

@@ -16,6 +16,8 @@
     "notification:allow-is-permission-granted",
     "notification:allow-request-permission",
     "notification:allow-notify",
+    "notification:allow-get-pending",
+    "notification:allow-cancel",
     "dialog:allow-open",
     "dialog:allow-save"
   ]
