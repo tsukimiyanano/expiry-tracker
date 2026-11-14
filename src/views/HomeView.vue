@@ -80,10 +80,6 @@ function toggleGroup(groupId: string) {
   collapsedGroupIds.value = next
 }
 
-function openSettings() {
-  void router.push({ name: 'settings' })
-}
-
 function openExpiredItems(groupId: string | null = null) {
   void router.push({
     name: 'expired-items',
@@ -249,22 +245,6 @@ function openExpiredItems(groupId: string | null = null) {
   font-size: 10px;
 }
 
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.nav-action {
-  color: var(--van-primary-color);
-  font-size: 14px;
-}
-
-.nav-action-icon {
-  display: flex;
-  align-items: center;
-}
-
 .saving-tip {
   margin-bottom: 8px;
   color: var(--et-color-text-hint);
@@ -306,7 +286,7 @@ function openExpiredItems(groupId: string | null = null) {
   position: fixed;
   right: 18px;
   bottom: calc(
-    var(--van-tabbar-height) + 20px + env(safe-area-inset-bottom, 0px)
+    var(--van-tabbar-height) + 20px + var(--et-safe-area-bottom, 0px)
   );
   z-index: 10;
   display: flex;

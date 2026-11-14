@@ -12,6 +12,11 @@
 #   public *;
 #}
 
+# 保留 MainActivity 暴露给 WebView 的安全距离接口
+-keepclassmembers class com.home.expirytracker.MainActivity$SafeAreaBridge {
+   @android.webkit.JavascriptInterface <methods>;
+}
+
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
 #-keepattributes SourceFile,LineNumberTable

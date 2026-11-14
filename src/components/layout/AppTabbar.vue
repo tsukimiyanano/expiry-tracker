@@ -9,7 +9,7 @@ const tabs = [
 </script>
 
 <template>
-  <Tabbar route fixed safe-area-inset-bottom class="app-tabbar">
+  <Tabbar route fixed class="app-tabbar">
     <TabbarItem
       v-for="tab in tabs"
       :key="tab.name"
@@ -21,3 +21,10 @@ const tabs = [
     </TabbarItem>
   </Tabbar>
 </template>
+
+<style scoped>
+/* 导航栏自身背景延伸到手势导航区，避免底部出现独立色块。 */
+.app-tabbar {
+  padding-bottom: var(--et-safe-area-bottom, 0px);
+}
+</style>
