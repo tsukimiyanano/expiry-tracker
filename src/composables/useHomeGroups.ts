@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 
+import { useToday } from '@/composables/useToday'
 import {
   APPROX_DAYS_PER_MONTH,
   EXPIRY_COUNTDOWN_DAY_MAX_DAYS,
@@ -76,12 +77,17 @@ function getCountdownInfo(
  */
 export function useHomeGroups() {
   const store = useAppDataStore()
+  const today = useToday()
 
   const expiredItems = computed(() =>
     store.items
       .map((item) => ({
         ...item,
-        expiryStatus: DateUtils.getExpiryStatus(item.expireDate, item.isUsed),
+        expiryStatus: DateUtils.getExpiryStatus(
+          item.expireDate,
+          item.isUsed,
+          today.value,
+        ),
       }))
       .filter((item) => item.expiryStatus.status === 'expired')
       .sort((a, b) => a.expireDate.localeCompare(b.expireDate)),
@@ -104,6 +110,7 @@ export function useHomeGroups() {
             const expiryStatus = DateUtils.getExpiryStatus(
               item.expireDate,
               item.isUsed,
+              today.value,
             )
 
             return {

@@ -5,6 +5,7 @@ import { Button, Icon, Loading, NavBar, showConfirmDialog } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 
 import ItemFormPopup from '@/components/items/ItemFormPopup.vue'
+import { useToday } from '@/composables/useToday'
 import { useAppDataStore } from '@/stores/app-data-store'
 import type { Item } from '@/types/item'
 import type { ExpiryStatusInfo } from '@/utils/date'
@@ -19,6 +20,7 @@ interface ExpiredItem extends Item {
 const route = useRoute()
 const router = useRouter()
 const store = useAppDataStore()
+const today = useToday()
 
 const { groups, items, initialized, loading, saving, error } =
   storeToRefs(store)
@@ -61,7 +63,11 @@ const expiredItems = computed<ExpiredItem[]>(() =>
     )
     .map((item) => ({
       ...item,
-      expiryStatus: DateUtils.getExpiryStatus(item.expireDate, item.isUsed),
+      expiryStatus: DateUtils.getExpiryStatus(
+        item.expireDate,
+        item.isUsed,
+        today.value,
+      ),
       groupName: groupNameMap.value.get(item.groupId) ?? '未知分组',
     }))
     .filter((item) => item.expiryStatus.status === 'expired')

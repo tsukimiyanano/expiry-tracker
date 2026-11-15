@@ -48,6 +48,16 @@ export const DateUtils = {
   },
 
   /**
+   * 返回距离下一个本地零点的毫秒数。
+   */
+  getMsUntilNextMidnight(now = new Date()): number {
+    const nextMidnight = new Date(now)
+    nextMidnight.setHours(24, 0, 0, 0)
+
+    return nextMidnight.getTime() - now.getTime()
+  },
+
+  /**
    * 计算物品的到期状态。
    *
    * 优先级：已用完 > 已过期 > 今天到期 > 即将到期（默认 7 天内）> 正常。
