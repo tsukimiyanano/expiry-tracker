@@ -51,16 +51,13 @@ const isUsed = ref(false)
 const submitting = ref(false)
 const submitError = ref<string | null>(null)
 
-const title = computed(() => {
-  switch (props.mode) {
-    case 'create':
-      return '新建物品'
-    case 'add':
-      return '添加同组物品'
-    case 'edit':
-      return '编辑物品'
-  }
-})
+const FORM_TITLES: Record<FormMode, string> = {
+  create: '新建物品',
+  add: '添加同组物品',
+  edit: '编辑物品',
+}
+
+const title = computed(() => FORM_TITLES[props.mode])
 
 const requiresGroupName = computed(() => props.mode === 'create')
 

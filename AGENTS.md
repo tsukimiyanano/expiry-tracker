@@ -177,4 +177,5 @@ type(scope): description
 - Prettier 覆盖 Vue / TS / JS / CSS / JSON / Markdown 等文件；**不负责 Rust**，Rust 代码继续使用 `rustfmt`。
 - 格式化范围由 `.prettierignore` 控制，排除 `node_modules`、`dist`、`src-tauri/target`、`src-tauri/gen`、锁文件等。
 - 批量格式化应作为独立任务执行，不与业务功能开发混合。
-- 后续规划：引入 ESLint 检查代码质量（本次未引入）。
+- 项目已引入 **ESLint**（flat config：`eslint.config.js`）检查代码质量：TypeScript 规则 + `eslint-plugin-vue` + `eslint-config-prettier`，脚本 `pnpm lint` / `pnpm lint:fix`。
+- ESLint 与 Prettier 分工明确：ESLint 负责代码质量与潜在错误，格式仍由 Prettier 负责，两者冲突规则已通过 `eslint-config-prettier` 关闭。

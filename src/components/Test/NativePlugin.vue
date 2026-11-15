@@ -147,8 +147,8 @@ async function testNotification() {
       <Button
         size="small"
         :loading="busy"
-        @click="testFileRead"
         style="margin-left: 8px"
+        @click="testFileRead"
       >
         读取文件
       </Button>
@@ -174,8 +174,8 @@ async function testNotification() {
       <Button
         type="primary"
         size="small"
-        @click="testNotification"
         style="margin-left: 8px"
+        @click="testNotification"
       >
         发送通知
       </Button>

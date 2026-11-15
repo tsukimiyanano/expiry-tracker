@@ -356,7 +356,7 @@ export function createAppDataRepository(fs: AppDataFileSystem) {
             '数据迁移失败，自动回滚也失败。请保留现有文件并执行恢复检查。' +
               `（迁移错误：${ErrorUtils.getMessage(cause)}；` +
               `回滚错误：${ErrorUtils.getMessage(rollbackCause)}）`,
-            { cause },
+            { cause: rollbackCause },
           )
         }
       }
