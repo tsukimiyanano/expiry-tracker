@@ -43,5 +43,19 @@ export default defineConfig(() => ({
     include: ['src/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8' as const,
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,vue}'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/__tests__/**',
+        'src/vite-env.d.ts',
+        'src/types/**',
+        'src/test/**',
+        'src/components/Test/**',
+        'src/composables/Test/**',
+      ],
+    },
   },
 }))
